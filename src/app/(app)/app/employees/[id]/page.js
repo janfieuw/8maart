@@ -129,10 +129,9 @@ export default function EmployeeDetailPage() {
       });
 
       const data = await readJson(res);
-
       const row = data.employee || null;
-      setEmployee(row);
 
+      setEmployee(row);
       setName(row?.name || "");
       setPairCode(row?.pairCode || "");
       setExpectedMode(row?.expectedMode || "ROSTER");
@@ -525,7 +524,7 @@ export default function EmployeeDetailPage() {
                                     {fmtDate(row.date)}
                                   </Typography>
                                   <Typography variant="body2" color="text.secondary">
-                                    Verwacht: {minutesToHoursLabel(row.expectedMinutes)}
+                                    Verwachte tijd: {minutesToHoursLabel(row.expectedMinutes)}
                                   </Typography>
                                 </Box>
 
