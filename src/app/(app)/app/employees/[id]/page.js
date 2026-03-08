@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Alert,
@@ -8,7 +9,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Divider,
   FormControl,
@@ -71,8 +71,9 @@ async function readJson(res) {
   return data;
 }
 
-export default function EmployeeDetailPage({ params }) {
-  const id = params?.id;
+export default function EmployeeDetailPage() {
+  const params = useParams();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
 
   const [tab, setTab] = useState(0);
 
@@ -111,7 +112,12 @@ export default function EmployeeDetailPage({ params }) {
   );
 
   async function loadEmployee() {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setEmployee(null);
+      setErr("Geen werknemer-ID gevonden in de URL.");
+      return;
+    }
 
     setLoading(true);
     setErr("");
@@ -325,7 +331,7 @@ export default function EmployeeDetailPage({ params }) {
                     Profiel + planning ({expectedMode || "ROSTER"} of CALENDAR)
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Employee ID: {id}
+                    Employee ID: {id || "-"}
                   </Typography>
                 </Box>
               </Stack>
