@@ -56,6 +56,26 @@ function getTagByDirection(row, direction) {
   return (row?.scanTags || []).find((t) => t.direction === direction) || null;
 }
 
+function getAppBaseUrl() {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+  if (envUrl) {
+    return envUrl.replace(/\/$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin.replace(/\/$/, "");
+  }
+
+  return "";
+}
+
+function buildPublicScanUrl(secret) {
+  if (!secret) return "";
+  const baseUrl = getAppBaseUrl();
+  return `${baseUrl}/s/${secret}`;
+}
+
 export default function TagsPage() {
   const [rows, setRows] = useState([]);
 
@@ -150,8 +170,12 @@ export default function TagsPage() {
       const outTag = getTagByDirection(row, "OUT");
 
       const [inData, outData] = await Promise.all([
-        inTag ? QRCode.toDataURL(inTag.secret, { width: 900, margin: 2 }) : Promise.resolve(""),
-        outTag ? QRCode.toDataURL(outTag.secret, { width: 900, margin: 2 }) : Promise.resolve(""),
+        inTag
+          ? QRCode.toDataURL(buildPublicScanUrl(inTag.secret), { width: 900, margin: 2 })
+          : Promise.resolve(""),
+        outTag
+          ? QRCode.toDataURL(buildPublicScanUrl(outTag.secret), { width: 900, margin: 2 })
+          : Promise.resolve(""),
       ]);
 
       setQrInDataUrl(inData);
@@ -249,6 +273,9 @@ export default function TagsPage() {
     const inTag = getTagByDirection(qrRow, "IN");
     const outTag = getTagByDirection(qrRow, "OUT");
 
+    const inUrl = buildPublicScanUrl(inTag?.secret || "");
+    const outUrl = buildPublicScanUrl(outTag?.secret || "");
+
     const name = qrRow.name || "Scanlocatie";
     const location = qrRow.location || "-";
 
@@ -325,7 +352,7 @@ export default function TagsPage() {
                     ? `<img src="${qrInDataUrl}" alt="QR IN" />`
                     : `<div>Geen QR</div>`
                 }
-                <div class="secret">${inTag?.secret || "-"}</div>
+                <div class="secret">${inUrl || "-"}</div>
               </div>
 
               <div class="box">
@@ -335,7 +362,7 @@ export default function TagsPage() {
                     ? `<img src="${qrOutDataUrl}" alt="QR OUT" />`
                     : `<div>Geen QR</div>`
                 }
-                <div class="secret">${outTag?.secret || "-"}</div>
+                <div class="secret">${outUrl || "-"}</div>
               </div>
             </div>
           </div>
@@ -456,7 +483,9 @@ export default function TagsPage() {
             </TableContainer>
 
             <Typography variant="caption" color="text.secondary">
-              {lastRefresh ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}` : "Nog niet ververst."}
+              {lastRefresh
+                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}`
+                : "Nog niet ververst."}
             </Typography>
           </Stack>
         </CardContent>
@@ -567,8 +596,8 @@ export default function TagsPage() {
                         />
                       ) : null}
                       <TextField
-                        label="Secret IN"
-                        value={getTagByDirection(qrRow, "IN")?.secret || ""}
+                        label="QR URL IN"
+                        value={buildPublicScanUrl(getTagByDirection(qrRow, "IN")?.secret || "")}
                         fullWidth
                         InputProps={{ readOnly: true }}
                       />
@@ -576,12 +605,12 @@ export default function TagsPage() {
                         startIcon={<ContentCopyIcon />}
                         onClick={() =>
                           copyText(
-                            getTagByDirection(qrRow, "IN")?.secret || "",
-                            "IN secret gekopieerd."
+                            buildPublicScanUrl(getTagByDirection(qrRow, "IN")?.secret || ""),
+                            "IN QR-link gekopieerd."
                           )
                         }
                       >
-                        Kopieer IN secret
+                        Kopieer IN link
                       </Button>
                     </Stack>
                   </Paper>
@@ -600,8 +629,8 @@ export default function TagsPage() {
                         />
                       ) : null}
                       <TextField
-                        label="Secret OUT"
-                        value={getTagByDirection(qrRow, "OUT")?.secret || ""}
+                        label="QR URL OUT"
+                        value={buildPublicScanUrl(getTagByDirection(qrRow, "OUT")?.secret || "")}
                         fullWidth
                         InputProps={{ readOnly: true }}
                       />
@@ -609,12 +638,12 @@ export default function TagsPage() {
                         startIcon={<ContentCopyIcon />}
                         onClick={() =>
                           copyText(
-                            getTagByDirection(qrRow, "OUT")?.secret || "",
-                            "OUT secret gekopieerd."
+                            buildPublicScanUrl(getTagByDirection(qrRow, "OUT")?.secret || ""),
+                            "OUT QR-link gekopieerd."
                           )
                         }
                       >
-                        Kopieer OUT secret
+                        Kopieer OUT link
                       </Button>
                     </Stack>
                   </Paper>
