@@ -1,72 +1,138 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-function jsonOk(data) {
-  return NextResponse.json({ ok: true, ...data });
+function jsonOk(data = {}, status = 200) {
+  return NextResponse.json({ ok: true, ...data }, { status });
 }
 
-function jsonErr(error, status = 400) {
-  return NextResponse.json({ ok: false, error }, { status });
+function jsonError(error, status = 400) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    },
+    { status }
+  );
 }
 
-export async function GET(req, { params }) {
+function normalizeId(params) {
+  const raw = params?.id;
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
+export async function GET(_req, context) {
   try {
-    const employee = await prisma.employee.findUnique({
-      where: { id: params.id },
-      select: {
-        id: true,
-        name: true,
-        pairCode: true,
-        expectedMode: true,
-        active: true,
-        createdAt: true,
-      },
-    });
+    const params = await context.params;
+    const id = normalizeId(params);
 
-    if (!employee) return jsonErr("Employee not found", 404);
-
-    return jsonOk({ employee });
-  } catch (e) {
-    console.error(e);
-    return jsonErr("Failed to load employee", 500);
-  }
-}
-
-export async function PATCH(req, { params }) {
-  try {
-    const body = await req.json();
-
-    const employee = await prisma.employee.update({
-      where: { id: params.id },
-      data: {
-        name: body.name,
-        pairCode: body.pairCode,
-        expectedMode: body.expectedMode,
-        active: body.active,
-      },
-    });
-
-    return jsonOk({ employee });
-  } catch (e) {
-    console.error(e);
-
-    if (e.code === "P2002") {
-      return jsonErr("PairCode bestaat al");
+    if (!id) {
+      return jsonError("Missing employee id", 400);
     }
 
-    return jsonErr("Employee update failed", 500);
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      include: {
+        rosterDays: {
+          orderBy: { weekday: "asc" },
+        },
+        calendarDays: {
+          orderBy: { date: "asc" },
+        },
+      },
+    });
+
+    if (!employee) {
+      return jsonError("Employee not found", 404);
+    }
+
+    return jsonOk({ employee });
+  } catch (error) {
+    console.error("GET /api/employees/[id] error:", error);
+    return jsonError("Failed to load employee", 500);
   }
 }
 
-export async function DELETE(req, { params }) {
+export async function PATCH(req, context) {
   try {
-    await prisma.employee.delete({
-      where: { id: params.id },
+    const params = await context.params;
+    const id = normalizeId(params);
+
+    if (!id) {
+      return jsonError("Missing employee id", 400);
+    }
+
+    const body = await req.json();
+    const data = {};
+
+    if (typeof body.name === "string") {
+      const name = body.name.trim();
+      if (!name) {
+        return jsonError("Name is required", 400);
+      }
+      data.name = name;
+    }
+
+    if (typeof body.pairCode === "string") {
+      const pairCode = body.pairCode.trim();
+      if (!pairCode) {
+        return jsonError("PairCode is required", 400);
+      }
+      data.pairCode = pairCode;
+    }
+
+    if (typeof body.expectedMode === "string") {
+      const expectedMode = body.expectedMode.trim().toUpperCase();
+      if (!["ROSTER", "CALENDAR"].includes(expectedMode)) {
+        return jsonError("Invalid expectedMode", 400);
+      }
+      data.expectedMode = expectedMode;
+    }
+
+    if (typeof body.active === "boolean") {
+      data.active = body.active;
+    }
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data,
+      include: {
+        rosterDays: {
+          orderBy: { weekday: "asc" },
+        },
+        calendarDays: {
+          orderBy: { date: "asc" },
+        },
+      },
     });
 
-    return jsonOk({});
-  } catch (e) {
-    console.error(e);
-    return jsonErr("Employee delete failed", 500);
+    return jsonOk({ employee });
+  } catch (error) {
+    console.error("PATCH /api/employees/[id] error:", error);
+
+    if (error?.code === "P2002") {
+      return jsonError("PairCode bestaat al", 409);
+    }
+
+    return jsonError("Failed to update employee", 500);
+  }
+}
+
+export async function DELETE(_req, context) {
+  try {
+    const params = await context.params;
+    const id = normalizeId(params);
+
+    if (!id) {
+      return jsonError("Missing employee id", 400);
+    }
+
+    await prisma.employee.delete({
+      where: { id },
+    });
+
+    return jsonOk({ deleted: true });
+  } catch (error) {
+    console.error("DELETE /api/employees/[id] error:", error);
+    return jsonError("Failed to delete employee", 500);
   }
 }
