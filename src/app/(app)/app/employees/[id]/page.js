@@ -15,6 +15,8 @@ import {
   FormControlLabel,
   InputLabel,
   MenuItem,
+  Radio,
+  RadioGroup,
   Select,
   Stack,
   Switch,
@@ -33,6 +35,34 @@ function fmtDate(value) {
   } catch {
     return String(value);
   }
+}
+
+function toIsoDateString(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRange(from, to) {
+  if (!from || !to) return [];
+
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+  if (start.getTime() > end.getTime()) return [];
+
+  const result = [];
+  const current = new Date(start);
+
+  while (current.getTime() <= end.getTime()) {
+    result.push(toIsoDateString(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
 }
 
 function weekdayLabel(weekday) {
@@ -95,8 +125,14 @@ export default function EmployeeDetailPage() {
   const [info, setInfo] = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
 
+  const [calendarMode, setCalendarMode] = useState("single");
   const [calendarDate, setCalendarDate] = useState("");
   const [calendarMinutes, setCalendarMinutes] = useState(480);
+
+  const [calendarFrom, setCalendarFrom] = useState("");
+  const [calendarTo, setCalendarTo] = useState("");
+  const [calendarRangeDefaultMinutes, setCalendarRangeDefaultMinutes] = useState(480);
+  const [calendarDraftDays, setCalendarDraftDays] = useState([]);
 
   const rosterTemplate = useMemo(
     () => [
@@ -246,7 +282,7 @@ export default function EmployeeDetailPage() {
     }
   }
 
-  async function addCalendarDay() {
+  async function addSingleCalendarDay() {
     if (!id) return;
 
     setSavingCalendar(true);
@@ -258,22 +294,115 @@ export default function EmployeeDetailPage() {
         throw new Error("Kies eerst een datum.");
       }
 
+      const minutes = Number(calendarMinutes || 0);
+      if (minutes < 0) {
+        throw new Error("Expected minutes mag niet negatief zijn.");
+      }
+
       const res = await fetch(`/api/employees/${id}/calendar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date: calendarDate,
-          expectedMinutes: Number(calendarMinutes || 0),
+          expectedMinutes: minutes,
         }),
       });
 
       await readJson(res);
+
       setCalendarDate("");
       setCalendarMinutes(480);
       setInfo("Kalenderdag opgeslagen.");
       await loadEmployee();
     } catch (e) {
       setErr(e?.message || "Kalenderdag opslaan mislukt.");
+    } finally {
+      setSavingCalendar(false);
+    }
+  }
+
+  function generateCalendarRangeDraft() {
+    setErr("");
+    setInfo("");
+
+    if (!calendarFrom || !calendarTo) {
+      setErr("Kies eerst een van- en tot-datum.");
+      return;
+    }
+
+    const dates = getDateRange(calendarFrom, calendarTo);
+    if (dates.length === 0) {
+      setErr("Ongeldige datumrange.");
+      return;
+    }
+
+    const defaultMinutes = Number(calendarRangeDefaultMinutes || 0);
+
+    setCalendarDraftDays(
+      dates.map((date) => ({
+        date,
+        expectedMinutes: defaultMinutes,
+      }))
+    );
+
+    setInfo(`${dates.length} dagen gegenereerd. Pas nu per dag de minuten aan.`);
+  }
+
+  function updateDraftMinutes(date, value) {
+    setCalendarDraftDays((prev) =>
+      prev.map((row) =>
+        row.date === date
+          ? { ...row, expectedMinutes: Number(value || 0) }
+          : row
+      )
+    );
+  }
+
+  function clearCalendarDraft() {
+    setCalendarDraftDays([]);
+  }
+
+  async function saveCalendarRange() {
+    if (!id) return;
+
+    setSavingCalendar(true);
+    setErr("");
+    setInfo("");
+
+    try {
+      if (calendarDraftDays.length === 0) {
+        throw new Error("Genereer eerst een range.");
+      }
+
+      for (const row of calendarDraftDays) {
+        const minutes = Number(row.expectedMinutes || 0);
+
+        if (minutes < 0) {
+          throw new Error(`Expected minutes mag niet negatief zijn voor ${row.date}.`);
+        }
+
+        const res = await fetch(`/api/employees/${id}/calendar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: row.date,
+            expectedMinutes: minutes,
+          }),
+        });
+
+        await readJson(res);
+      }
+
+      const count = calendarDraftDays.length;
+
+      setCalendarFrom("");
+      setCalendarTo("");
+      setCalendarRangeDefaultMinutes(480);
+      setCalendarDraftDays([]);
+      setInfo(`${count} kalenderdagen opgeslagen.`);
+      await loadEmployee();
+    } catch (e) {
+      setErr(e?.message || "Kalenderdagen opslaan mislukt.");
     } finally {
       setSavingCalendar(false);
     }
@@ -287,9 +416,12 @@ export default function EmployeeDetailPage() {
     setInfo("");
 
     try {
-      const res = await fetch(`/api/employees/${id}/calendar?date=${encodeURIComponent(date)}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/employees/${id}/calendar?date=${encodeURIComponent(date)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       await readJson(res);
       setInfo("Kalenderdag verwijderd.");
@@ -470,35 +602,162 @@ export default function EmployeeDetailPage() {
 
                     <Card variant="outlined">
                       <CardContent>
-                        <Stack
-                          direction={{ xs: "column", md: "row" }}
-                          spacing={2}
-                          alignItems={{ xs: "stretch", md: "center" }}
-                        >
-                          <TextField
-                            label="Datum"
-                            type="date"
-                            value={calendarDate}
-                            onChange={(e) => setCalendarDate(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            sx={{ minWidth: 220 }}
-                          />
+                        <Stack spacing={3}>
+                          <FormControl>
+                            <RadioGroup
+                              row
+                              value={calendarMode}
+                              onChange={(e) => {
+                                setCalendarMode(e.target.value);
+                                setCalendarDraftDays([]);
+                              }}
+                            >
+                              <FormControlLabel
+                                value="single"
+                                control={<Radio />}
+                                label="1 dag"
+                              />
+                              <FormControlLabel
+                                value="range"
+                                control={<Radio />}
+                                label="Range"
+                              />
+                            </RadioGroup>
+                          </FormControl>
 
-                          <TextField
-                            label="Expected minutes"
-                            type="number"
-                            value={calendarMinutes}
-                            onChange={(e) => setCalendarMinutes(e.target.value)}
-                            sx={{ minWidth: 220 }}
-                          />
+                          {calendarMode === "single" ? (
+                            <Stack
+                              direction={{ xs: "column", md: "row" }}
+                              spacing={2}
+                              alignItems={{ xs: "stretch", md: "center" }}
+                            >
+                              <TextField
+                                label="Datum"
+                                type="date"
+                                value={calendarDate}
+                                onChange={(e) => setCalendarDate(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                                sx={{ minWidth: 220 }}
+                              />
 
-                          <Button
-                            variant="contained"
-                            onClick={addCalendarDay}
-                            disabled={savingCalendar}
-                          >
-                            {savingCalendar ? "Opslaan..." : "Toevoegen"}
-                          </Button>
+                              <TextField
+                                label="Expected minutes"
+                                type="number"
+                                value={calendarMinutes}
+                                onChange={(e) => setCalendarMinutes(e.target.value)}
+                                sx={{ minWidth: 220 }}
+                              />
+
+                              <Button
+                                variant="contained"
+                                onClick={addSingleCalendarDay}
+                                disabled={savingCalendar}
+                              >
+                                {savingCalendar ? "Opslaan..." : "Toevoegen"}
+                              </Button>
+                            </Stack>
+                          ) : (
+                            <Stack spacing={3}>
+                              <Stack
+                                direction={{ xs: "column", md: "row" }}
+                                spacing={2}
+                                alignItems={{ xs: "stretch", md: "center" }}
+                              >
+                                <TextField
+                                  label="Van"
+                                  type="date"
+                                  value={calendarFrom}
+                                  onChange={(e) => setCalendarFrom(e.target.value)}
+                                  InputLabelProps={{ shrink: true }}
+                                  sx={{ minWidth: 220 }}
+                                />
+
+                                <TextField
+                                  label="Tot"
+                                  type="date"
+                                  value={calendarTo}
+                                  onChange={(e) => setCalendarTo(e.target.value)}
+                                  InputLabelProps={{ shrink: true }}
+                                  sx={{ minWidth: 220 }}
+                                />
+
+                                <TextField
+                                  label="Standaard minutes"
+                                  type="number"
+                                  value={calendarRangeDefaultMinutes}
+                                  onChange={(e) =>
+                                    setCalendarRangeDefaultMinutes(e.target.value)
+                                  }
+                                  sx={{ minWidth: 220 }}
+                                />
+
+                                <Button
+                                  variant="outlined"
+                                  onClick={generateCalendarRangeDraft}
+                                  disabled={savingCalendar}
+                                >
+                                  Genereer dagen
+                                </Button>
+                              </Stack>
+
+                              {calendarDraftDays.length > 0 ? (
+                                <Stack spacing={2}>
+                                  <Typography variant="subtitle1" fontWeight={700}>
+                                    Range preview
+                                  </Typography>
+
+                                  {calendarDraftDays.map((row) => (
+                                    <Card key={row.date} variant="outlined">
+                                      <CardContent>
+                                        <Stack
+                                          direction={{ xs: "column", md: "row" }}
+                                          spacing={2}
+                                          justifyContent="space-between"
+                                          alignItems={{ xs: "flex-start", md: "center" }}
+                                        >
+                                          <Box sx={{ minWidth: 180 }}>
+                                            <Typography fontWeight={700}>
+                                              {fmtDate(row.date)}
+                                            </Typography>
+                                          </Box>
+
+                                          <TextField
+                                            label="Expected minutes"
+                                            type="number"
+                                            value={row.expectedMinutes}
+                                            onChange={(e) =>
+                                              updateDraftMinutes(row.date, e.target.value)
+                                            }
+                                            sx={{ width: 220 }}
+                                          />
+                                        </Stack>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+
+                                  <Stack direction="row" spacing={2}>
+                                    <Button
+                                      variant="contained"
+                                      onClick={saveCalendarRange}
+                                      disabled={savingCalendar}
+                                    >
+                                      {savingCalendar
+                                        ? "Opslaan..."
+                                        : "Range opslaan"}
+                                    </Button>
+
+                                    <Button
+                                      variant="text"
+                                      onClick={clearCalendarDraft}
+                                      disabled={savingCalendar}
+                                    >
+                                      Wissen
+                                    </Button>
+                                  </Stack>
+                                </Stack>
+                              ) : null}
+                            </Stack>
+                          )}
                         </Stack>
                       </CardContent>
                     </Card>
