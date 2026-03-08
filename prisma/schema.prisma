@@ -6,17 +6,66 @@ datasource db {
   provider = "postgresql"
 }
 
+model Company {
+  id                  String        @id @default(cuid())
+  name                String
+  slug                String        @unique
+  vatNumber           String?
+  phone               String?
+
+  billingStreet       String?
+  billingHouseNumber  String?
+  billingPostalCode   String?
+  billingCity         String?
+  billingCountry      String?
+
+  shippingStreet      String?
+  shippingHouseNumber String?
+  shippingPostalCode  String?
+  shippingCity        String?
+  shippingCountry     String?
+
+  createdAt           DateTime      @default(now())
+
+  users               User[]
+  employees           Employee[]
+  scanLocations       ScanLocation[]
+  scanEvents          ScanEvent[]
+
+  @@index([name])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  companyId    String
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
 model Employee {
   id           String                @id @default(cuid())
+  companyId    String
   name         String
   pairCode     String                @unique
   active       Boolean               @default(true)
   createdAt    DateTime              @default(now())
   expectedMode ExpectedMode          @default(ROSTER)
+
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   devices      Device[]
   calendarDays EmployeeCalendarDay[]
   rosterDays   EmployeeRosterDay[]
   scanEvents   ScanEvent[]
+
+  @@index([companyId])
+  @@index([name])
 }
 
 model Device {
@@ -24,6 +73,7 @@ model Device {
   employeeId  String
   deviceToken String   @unique
   createdAt   DateTime @default(now())
+
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
@@ -34,10 +84,11 @@ model EmployeeRosterDay {
   employeeId      String
   weekday         Int
   expectedMinutes Int
+
   employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, weekday])
-  @@index([employeeId, weekday])
+  @@index([employeeId])
 }
 
 model EmployeeCalendarDay {
@@ -45,18 +96,25 @@ model EmployeeCalendarDay {
   employeeId      String
   date            DateTime @db.Date
   expectedMinutes Int
+
   employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, date])
-  @@index([employeeId, date])
+  @@index([employeeId])
 }
 
 model ScanLocation {
-  id        String    @id @default(cuid())
-  name      String
-  location  String?
-  createdAt DateTime  @default(now())
-  scanTags  ScanTag[]
+  id          String        @id @default(cuid())
+  companyId   String
+  name        String
+  location    String?
+  createdAt   DateTime      @default(now())
+
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scanTags    ScanTag[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model ScanTag {
@@ -65,8 +123,9 @@ model ScanTag {
   createdAt      DateTime      @default(now())
   direction      ScanDirection
   scanLocationId String
-  scanEvents     ScanEvent[]
+
   scanLocation   ScanLocation  @relation(fields: [scanLocationId], references: [id], onDelete: Cascade)
+  scanEvents     ScanEvent[]
 
   @@unique([scanLocationId, direction])
   @@index([scanLocationId])
@@ -74,13 +133,17 @@ model ScanTag {
 
 model ScanEvent {
   id         String   @id @default(cuid())
+  companyId  String
   employeeId String
   scanTagId  String
   type       ScanType
   scannedAt  DateTime @default(now())
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   scanTag    ScanTag  @relation(fields: [scanTagId], references: [id], onDelete: Cascade)
 
+  @@index([companyId, scannedAt])
   @@index([employeeId, scannedAt])
   @@index([scanTagId, scannedAt])
 }

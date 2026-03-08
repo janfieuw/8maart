@@ -19,14 +19,14 @@
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "next": "16.1.6",
-    "pg": "^8.19.0",
-    "prisma": "^7.4.2",
+    "pg": "^8.20.0",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
     "eslint": "^9",
-    "eslint-config-next": "16.1.6"
+    "eslint-config-next": "16.1.6",
+    "prisma": "^7.4.2"
   }
 }

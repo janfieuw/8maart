@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getDemoCompanyId } from "@/lib/demo-company";
 
 function jsonOk(data = {}, status = 200) {
   return NextResponse.json({ ok: true, ...data }, { status });
@@ -22,6 +23,7 @@ function normalizeId(params) {
 
 export async function GET(_req, context) {
   try {
+    const companyId = await getDemoCompanyId();
     const params = await context.params;
     const id = normalizeId(params);
 
@@ -29,8 +31,8 @@ export async function GET(_req, context) {
       return jsonError("Missing employee id", 400);
     }
 
-    const employee = await prisma.employee.findUnique({
-      where: { id },
+    const employee = await prisma.employee.findFirst({
+      where: { id, companyId },
       include: {
         rosterDays: {
           orderBy: { weekday: "asc" },
@@ -54,11 +56,21 @@ export async function GET(_req, context) {
 
 export async function PATCH(req, context) {
   try {
+    const companyId = await getDemoCompanyId();
     const params = await context.params;
     const id = normalizeId(params);
 
     if (!id) {
       return jsonError("Missing employee id", 400);
+    }
+
+    const existing = await prisma.employee.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return jsonError("Employee not found", 404);
     }
 
     const body = await req.json();
@@ -119,11 +131,21 @@ export async function PATCH(req, context) {
 
 export async function DELETE(_req, context) {
   try {
+    const companyId = await getDemoCompanyId();
     const params = await context.params;
     const id = normalizeId(params);
 
     if (!id) {
       return jsonError("Missing employee id", 400);
+    }
+
+    const existing = await prisma.employee.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return jsonError("Employee not found", 404);
     }
 
     await prisma.employee.delete({

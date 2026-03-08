@@ -1,105 +1,119 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getDemoCompanyId } from "@/lib/demo-company";
 
-function jsonOk(data, init) {
-  return NextResponse.json({ ok: true, ...data }, init);
-}
-function jsonErr(error, init) {
-  return NextResponse.json({ ok: false, error }, init);
+function jsonOk(data = {}, status = 200) {
+  return NextResponse.json({ ok: true, ...data }, { status });
 }
 
-async function getEmployeeId(context) {
-  const params = await context?.params;
-  return params?.id ?? null;
+function jsonError(error, status = 400) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    },
+    { status }
+  );
 }
 
-function parseDateOnly(str) {
-  if (!str || typeof str !== "string") return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return null;
-
-  const d = new Date(str + "T00:00:00.000Z");
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
+function normalizeId(params) {
+  const raw = params?.id;
+  return Array.isArray(raw) ? raw[0] : raw;
 }
 
-export async function GET(req, context) {
-  try {
-    const employeeId = await getEmployeeId(context);
-    if (!employeeId) return jsonErr("Missing employee id", { status: 400 });
-
-    const { searchParams } = new URL(req.url);
-    const fromStr = searchParams.get("from");
-    const toStr = searchParams.get("to");
-
-    const from = parseDateOnly(fromStr);
-    const to = parseDateOnly(toStr);
-
-    if (!from || !to) {
-      return jsonErr("Invalid from/to (YYYY-MM-DD required)", { status: 400 });
-    }
-
-    const rows = await prisma.employeeCalendarDay.findMany({
-      where: {
-        employeeId,
-        date: { gte: from, lte: to },
-      },
-      select: { id: true, date: true, expectedMinutes: true },
-      orderBy: { date: "asc" },
-      take: 1000,
-    });
-
-    return jsonOk({ rows });
-  } catch (e) {
-    return jsonErr(e?.message || "Failed to load calendar", { status: 500 });
+function normalizeDateOnly(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error("Invalid date");
   }
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
 export async function POST(req, context) {
   try {
-    const employeeId = await getEmployeeId(context);
-    if (!employeeId) return jsonErr("Missing employee id", { status: 400 });
+    const companyId = await getDemoCompanyId();
+    const params = await context.params;
+    const employeeId = normalizeId(params);
 
-    const body = await req.json();
-    const dateStr = body?.date;
-    const expectedMinutes = Number(body?.expectedMinutes);
-
-    const date = parseDateOnly(dateStr);
-    if (!date) return jsonErr("Invalid date (YYYY-MM-DD)", { status: 400 });
-
-    if (!Number.isFinite(expectedMinutes) || expectedMinutes < 0) {
-      return jsonErr("Invalid expectedMinutes (>= 0)", { status: 400 });
+    if (!employeeId) {
+      return jsonError("Missing employee id", 400);
     }
 
-    const row = await prisma.employeeCalendarDay.upsert({
-      where: { employeeId_date: { employeeId, date } },
-      update: { expectedMinutes: Math.round(expectedMinutes) },
-      create: { employeeId, date, expectedMinutes: Math.round(expectedMinutes) },
-      select: { id: true, date: true, expectedMinutes: true },
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+      select: { id: true },
     });
 
-    return jsonOk({ row }, { status: 201 });
-  } catch (e) {
-    return jsonErr(e?.message || "Failed to save calendar day", { status: 500 });
+    if (!employee) {
+      return jsonError("Employee not found", 404);
+    }
+
+    const body = await req.json();
+    const date = normalizeDateOnly(body?.date);
+    const expectedMinutes = Number(body?.expectedMinutes || 0);
+
+    const calendarDay = await prisma.employeeCalendarDay.upsert({
+      where: {
+        employeeId_date: {
+          employeeId,
+          date,
+        },
+      },
+      update: {
+        expectedMinutes,
+      },
+      create: {
+        employeeId,
+        date,
+        expectedMinutes,
+      },
+    });
+
+    return jsonOk({ calendarDay });
+  } catch (error) {
+    console.error("POST /api/employees/[id]/calendar error:", error);
+    return jsonError("Failed to save calendar day", 500);
   }
 }
 
 export async function DELETE(req, context) {
   try {
-    const employeeId = await getEmployeeId(context);
-    if (!employeeId) return jsonErr("Missing employee id", { status: 400 });
+    const companyId = await getDemoCompanyId();
+    const params = await context.params;
+    const employeeId = normalizeId(params);
 
-    const { searchParams } = new URL(req.url);
-    const dateStr = searchParams.get("date");
-    const date = parseDateOnly(dateStr);
+    if (!employeeId) {
+      return jsonError("Missing employee id", 400);
+    }
 
-    if (!date) return jsonErr("Invalid date (YYYY-MM-DD)", { status: 400 });
-
-    await prisma.employeeCalendarDay.delete({
-      where: { employeeId_date: { employeeId, date } },
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+      select: { id: true },
     });
 
-    return jsonOk({ ok: true });
-  } catch (e) {
-    return jsonErr(e?.message || "Failed to delete calendar day", { status: 500 });
+    if (!employee) {
+      return jsonError("Employee not found", 404);
+    }
+
+    const { searchParams } = new URL(req.url);
+    const dateParam = searchParams.get("date");
+
+    if (!dateParam) {
+      return jsonError("Missing date", 400);
+    }
+
+    const date = normalizeDateOnly(dateParam);
+
+    await prisma.employeeCalendarDay.deleteMany({
+      where: {
+        employeeId,
+        date,
+      },
+    });
+
+    return jsonOk({ deleted: true });
+  } catch (error) {
+    console.error("DELETE /api/employees/[id]/calendar error:", error);
+    return jsonError("Failed to delete calendar day", 500);
   }
 }
