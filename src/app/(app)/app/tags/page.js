@@ -3,39 +3,55 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import {
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
-  Typography,
-  Stack,
-  TextField,
-  Button,
-  Alert,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
+  TextField,
   Tooltip,
-  Divider,
+  Typography,
   Chip,
-  Grid,
 } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import QrCode2Icon from "@mui/icons-material/QrCode2";
 import PrintIcon from "@mui/icons-material/Print";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
+import RefreshIcon from "@mui/icons-material/Refresh";
+
+function readJsonSafe(text) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readJson(res) {
+  const text = await res.text();
+  const data = readJsonSafe(text);
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
 
 function fmtDateTime(value) {
   if (!value) return "-";
@@ -72,88 +88,126 @@ function getAppBaseUrl() {
 
 function buildPublicScanUrl(secret) {
   if (!secret) return "";
-  const baseUrl = getAppBaseUrl();
-  return `${baseUrl}/s/${secret}`;
+  return `${getAppBaseUrl()}/s/${secret}`;
 }
 
 export default function TagsPage() {
   const [rows, setRows] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
 
   const [openCreate, setOpenCreate] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formLocation, setFormLocation] = useState("");
 
   const [openQr, setOpenQr] = useState(false);
   const [qrRow, setQrRow] = useState(null);
   const [qrInDataUrl, setQrInDataUrl] = useState("");
   const [qrOutDataUrl, setQrOutDataUrl] = useState("");
-  const [qrLoading, setQrLoading] = useState(false);
 
-  const emptyForm = {
-    id: "",
-    name: "",
-    location: "",
-  };
-
-  const [form, setForm] = useState(emptyForm);
-
-  async function readJson(res) {
-    const text = await res.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = null;
-    }
-    if (!res.ok || !data?.ok) {
-      throw new Error(data?.error || text || `HTTP ${res.status}`);
-    }
-    return data;
-  }
-
-  async function loadTags() {
+  async function loadLocations() {
     setLoading(true);
     setErr("");
     setInfo("");
+
     try {
-      const res = await fetch("/api/tags", { cache: "no-store" });
+      const res = await fetch("/api/scan-locations", { cache: "no-store" });
       const data = await readJson(res);
 
-      setRows(data.rows || []);
+      setRows(Array.isArray(data.rows) ? data.rows : []);
       setLastRefresh(new Date());
     } catch (e) {
       setRows([]);
-      setErr(e?.message || "Load failed");
+      setErr(e?.message || "Scanlocaties laden mislukt.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadTags();
+    loadLocations();
   }, []);
+
+  function resetCreateForm() {
+    setFormName("");
+    setFormLocation("");
+  }
 
   function openCreateDialog() {
     setErr("");
     setInfo("");
-    setForm({ ...emptyForm });
+    resetCreateForm();
     setOpenCreate(true);
   }
 
-  function openEditDialog(row) {
+  async function createLocation() {
+    setSaving(true);
     setErr("");
     setInfo("");
-    setForm({
-      id: row.id,
-      name: row.name || "",
-      location: row.location || "",
-    });
-    setOpenEdit(true);
+
+    try {
+      const name = String(formName || "").trim();
+      const location = String(formLocation || "").trim();
+
+      if (!name) {
+        throw new Error("Naam is verplicht.");
+      }
+
+      const res = await fetch("/api/scan-locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          location,
+        }),
+      });
+
+      const createData = await readJson(res);
+      const locationRow = createData.scanLocation;
+
+      await Promise.all([
+        fetch("/api/tags", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scanLocationId: locationRow.id,
+            direction: "IN",
+          }),
+        }).then(readJson),
+        fetch("/api/tags", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scanLocationId: locationRow.id,
+            direction: "OUT",
+          }),
+        }).then(readJson),
+      ]);
+
+      setOpenCreate(false);
+      resetCreateForm();
+      await loadLocations();
+      setInfo("Scanlocatie aangemaakt met IN en OUT QR.");
+    } catch (e) {
+      setErr(e?.message || "Scanlocatie aanmaken mislukt.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copyText(text, successMessage = "Gekopieerd.") {
+    try {
+      await navigator.clipboard.writeText(text || "");
+      setErr("");
+      setInfo(successMessage);
+    } catch {
+      setErr("Kopiëren is niet gelukt.");
+    }
   }
 
   async function openQrDialog(row) {
@@ -184,86 +238,6 @@ export default function TagsPage() {
       setErr(e?.message || "QR genereren mislukt.");
     } finally {
       setQrLoading(false);
-    }
-  }
-
-  async function createTag() {
-    setSaving(true);
-    setErr("");
-    setInfo("");
-    try {
-      const res = await fetch("/api/tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          location: form.location,
-        }),
-      });
-
-      await readJson(res);
-
-      setOpenCreate(false);
-      setForm({ ...emptyForm });
-      await loadTags();
-      setInfo("Scanlocatie aangemaakt met IN en OUT QR.");
-    } catch (e) {
-      setErr(e?.message || "Create failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function updateTag() {
-    setSaving(true);
-    setErr("");
-    setInfo("");
-    try {
-      if (!form.id) throw new Error("Missing id");
-
-      const res = await fetch(`/api/tags/${form.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          location: form.location,
-        }),
-      });
-
-      await readJson(res);
-
-      setOpenEdit(false);
-      await loadTags();
-      setInfo("Scanlocatie bijgewerkt.");
-    } catch (e) {
-      setErr(e?.message || "Update failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function deleteTag(id) {
-    setErr("");
-    setInfo("");
-    try {
-      const res = await fetch(`/api/tags/${id}`, {
-        method: "DELETE",
-      });
-      await readJson(res);
-      await loadTags();
-      setInfo("Scanlocatie verwijderd.");
-    } catch (e) {
-      setErr(e?.message || "Delete failed");
-    }
-  }
-
-  async function copyText(text, message = "Gekopieerd.") {
-    try {
-      await navigator.clipboard.writeText(text || "");
-      setErr("");
-      setInfo(message);
-    } catch {
-      setErr("Kopiëren is niet gelukt.");
     }
   }
 
@@ -331,7 +305,7 @@ export default function TagsPage() {
               width: 280px;
               height: 280px;
             }
-            .secret {
+            .url {
               margin-top: 12px;
               font-family: monospace;
               font-size: 14px;
@@ -347,22 +321,14 @@ export default function TagsPage() {
             <div class="grid">
               <div class="box">
                 <div class="dir">IN</div>
-                ${
-                  qrInDataUrl
-                    ? `<img src="${qrInDataUrl}" alt="QR IN" />`
-                    : `<div>Geen QR</div>`
-                }
-                <div class="secret">${inUrl || "-"}</div>
+                ${qrInDataUrl ? `<img src="${qrInDataUrl}" alt="QR IN" />` : `<div>Geen QR</div>`}
+                <div class="url">${inUrl || "-"}</div>
               </div>
 
               <div class="box">
                 <div class="dir">OUT</div>
-                ${
-                  qrOutDataUrl
-                    ? `<img src="${qrOutDataUrl}" alt="QR OUT" />`
-                    : `<div>Geen QR</div>`
-                }
-                <div class="secret">${outUrl || "-"}</div>
+                ${qrOutDataUrl ? `<img src="${qrOutDataUrl}" alt="QR OUT" />` : `<div>Geen QR</div>`}
+                <div class="url">${outUrl || "-"}</div>
               </div>
             </div>
           </div>
@@ -379,10 +345,15 @@ export default function TagsPage() {
     <Box>
       <Card>
         <CardContent>
-          <Stack spacing={2}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+          <Stack spacing={2.5}>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "stretch", md: "flex-start" }}
+              spacing={2}
+            >
               <Box>
-                <Typography variant="h5" fontWeight={800}>
+                <Typography variant="h4" fontWeight={800}>
                   ScanTags
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -390,11 +361,11 @@ export default function TagsPage() {
                 </Typography>
               </Box>
 
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Button
                   variant="contained"
                   startIcon={<RefreshIcon />}
-                  onClick={loadTags}
+                  onClick={loadLocations}
                   disabled={loading}
                 >
                   Verversen
@@ -443,37 +414,23 @@ export default function TagsPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    rows.map((r) => (
-                      <TableRow key={r.id} hover>
-                        <TableCell>{r.name || "-"}</TableCell>
-                        <TableCell>{r.location || "-"}</TableCell>
+                    rows.map((row) => (
+                      <TableRow key={row.id} hover>
+                        <TableCell>{row.name || "-"}</TableCell>
+                        <TableCell>{row.location || "-"}</TableCell>
                         <TableCell>
                           <Stack direction="row" spacing={1}>
                             {directionChip("IN")}
                             {directionChip("OUT")}
                           </Stack>
                         </TableCell>
-                        <TableCell>{fmtDateTime(r.createdAt)}</TableCell>
+                        <TableCell>{fmtDateTime(row.createdAt)}</TableCell>
                         <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Tooltip title="QR tonen">
-                              <IconButton onClick={() => openQrDialog(r)}>
-                                <QrCode2Icon />
-                              </IconButton>
-                            </Tooltip>
-
-                            <Tooltip title="Bewerken">
-                              <IconButton onClick={() => openEditDialog(r)}>
-                                <EditOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
-
-                            <Tooltip title="Verwijderen">
-                              <IconButton onClick={() => deleteTag(r.id)}>
-                                <DeleteOutlineIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
+                          <Tooltip title="QR tonen">
+                            <IconButton onClick={() => openQrDialog(row)}>
+                              <QrCode2Icon />
+                            </IconButton>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     ))
@@ -502,16 +459,16 @@ export default function TagsPage() {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Naam"
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
               fullWidth
               placeholder="Bijv. Ingang magazijn"
             />
 
             <TextField
               label="Locatie"
-              value={form.location}
-              onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
+              value={formLocation}
+              onChange={(e) => setFormLocation(e.target.value)}
               fullWidth
               placeholder="Bijv. Poort 3"
             />
@@ -521,42 +478,8 @@ export default function TagsPage() {
           <Button onClick={() => setOpenCreate(false)} disabled={saving}>
             Annuleren
           </Button>
-          <Button variant="contained" onClick={createTag} disabled={saving}>
+          <Button variant="contained" onClick={createLocation} disabled={saving}>
             {saving ? "Opslaan..." : "Aanmaken"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={openEdit}
-        onClose={() => (!saving ? setOpenEdit(false) : null)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>Scanlocatie bewerken</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="Naam"
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              fullWidth
-            />
-
-            <TextField
-              label="Locatie"
-              value={form.location}
-              onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEdit(false)} disabled={saving}>
-            Annuleren
-          </Button>
-          <Button variant="contained" onClick={updateTag} disabled={saving}>
-            {saving ? "Opslaan..." : "Opslaan"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -582,73 +505,69 @@ export default function TagsPage() {
                 <Typography variant="body2">QR genereren…</Typography>
               </Stack>
             ) : (
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Paper variant="outlined" sx={{ p: 2, textAlign: "center" }}>
-                    <Stack spacing={2} alignItems="center">
-                      {directionChip("IN")}
-                      {qrInDataUrl ? (
-                        <Box
-                          component="img"
-                          src={qrInDataUrl}
-                          alt="QR IN"
-                          sx={{ width: 260, height: 260, bgcolor: "#fff", p: 1, borderRadius: 2 }}
-                        />
-                      ) : null}
-                      <TextField
-                        label="QR URL IN"
-                        value={buildPublicScanUrl(getTagByDirection(qrRow, "IN")?.secret || "")}
-                        fullWidth
-                        InputProps={{ readOnly: true }}
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <Paper variant="outlined" sx={{ p: 2, textAlign: "center", flex: 1 }}>
+                  <Stack spacing={2} alignItems="center">
+                    {directionChip("IN")}
+                    {qrInDataUrl ? (
+                      <Box
+                        component="img"
+                        src={qrInDataUrl}
+                        alt="QR IN"
+                        sx={{ width: 260, height: 260, bgcolor: "#fff", p: 1, borderRadius: 2 }}
                       />
-                      <Button
-                        startIcon={<ContentCopyIcon />}
-                        onClick={() =>
-                          copyText(
-                            buildPublicScanUrl(getTagByDirection(qrRow, "IN")?.secret || ""),
-                            "IN QR-link gekopieerd."
-                          )
-                        }
-                      >
-                        Kopieer IN link
-                      </Button>
-                    </Stack>
-                  </Paper>
-                </Grid>
+                    ) : null}
+                    <TextField
+                      label="QR URL IN"
+                      value={buildPublicScanUrl(getTagByDirection(qrRow, "IN")?.secret || "")}
+                      fullWidth
+                      InputProps={{ readOnly: true }}
+                    />
+                    <Button
+                      startIcon={<ContentCopyIcon />}
+                      onClick={() =>
+                        copyText(
+                          buildPublicScanUrl(getTagByDirection(qrRow, "IN")?.secret || ""),
+                          "IN QR-link gekopieerd."
+                        )
+                      }
+                    >
+                      Kopieer IN link
+                    </Button>
+                  </Stack>
+                </Paper>
 
-                <Grid item xs={12} md={6}>
-                  <Paper variant="outlined" sx={{ p: 2, textAlign: "center" }}>
-                    <Stack spacing={2} alignItems="center">
-                      {directionChip("OUT")}
-                      {qrOutDataUrl ? (
-                        <Box
-                          component="img"
-                          src={qrOutDataUrl}
-                          alt="QR OUT"
-                          sx={{ width: 260, height: 260, bgcolor: "#fff", p: 1, borderRadius: 2 }}
-                        />
-                      ) : null}
-                      <TextField
-                        label="QR URL OUT"
-                        value={buildPublicScanUrl(getTagByDirection(qrRow, "OUT")?.secret || "")}
-                        fullWidth
-                        InputProps={{ readOnly: true }}
+                <Paper variant="outlined" sx={{ p: 2, textAlign: "center", flex: 1 }}>
+                  <Stack spacing={2} alignItems="center">
+                    {directionChip("OUT")}
+                    {qrOutDataUrl ? (
+                      <Box
+                        component="img"
+                        src={qrOutDataUrl}
+                        alt="QR OUT"
+                        sx={{ width: 260, height: 260, bgcolor: "#fff", p: 1, borderRadius: 2 }}
                       />
-                      <Button
-                        startIcon={<ContentCopyIcon />}
-                        onClick={() =>
-                          copyText(
-                            buildPublicScanUrl(getTagByDirection(qrRow, "OUT")?.secret || ""),
-                            "OUT QR-link gekopieerd."
-                          )
-                        }
-                      >
-                        Kopieer OUT link
-                      </Button>
-                    </Stack>
-                  </Paper>
-                </Grid>
-              </Grid>
+                    ) : null}
+                    <TextField
+                      label="QR URL OUT"
+                      value={buildPublicScanUrl(getTagByDirection(qrRow, "OUT")?.secret || "")}
+                      fullWidth
+                      InputProps={{ readOnly: true }}
+                    />
+                    <Button
+                      startIcon={<ContentCopyIcon />}
+                      onClick={() =>
+                        copyText(
+                          buildPublicScanUrl(getTagByDirection(qrRow, "OUT")?.secret || ""),
+                          "OUT QR-link gekopieerd."
+                        )
+                      }
+                    >
+                      Kopieer OUT link
+                    </Button>
+                  </Stack>
+                </Paper>
+              </Stack>
             )}
           </Stack>
         </DialogContent>

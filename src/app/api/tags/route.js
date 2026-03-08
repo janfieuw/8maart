@@ -1,100 +1,33 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
-function jsonOk(data, init) {
-  return NextResponse.json({ ok: true, ...data }, init);
+function jsonOk(data = {}, status = 200) {
+  return NextResponse.json({ ok: true, ...data }, { status });
 }
 
-function jsonErr(error, init) {
-  return NextResponse.json({ ok: false, error }, init);
-}
-
-function makeSecret() {
-  return crypto.randomBytes(16).toString("hex");
-}
-
-export async function GET() {
-  try {
-    const rows = await prisma.scanLocation.findMany({
-      orderBy: [{ createdAt: "desc" }],
-      select: {
-        id: true,
-        name: true,
-        location: true,
-        createdAt: true,
-        scanTags: {
-          select: {
-            id: true,
-            secret: true,
-            direction: true,
-            createdAt: true,
-          },
-          orderBy: { direction: "asc" },
-        },
-      },
-    });
-
-    return jsonOk({ rows });
-  } catch (e) {
-    return jsonErr(e?.message || "Failed to load scan locations", { status: 500 });
-  }
+function randomSecret() {
+  return crypto.randomBytes(24).toString("hex");
 }
 
 export async function POST(req) {
   try {
     const body = await req.json();
 
-    const name = String(body?.name || "").trim();
-    const location = String(body?.location || "").trim();
+    const scanLocationId = body.scanLocationId;
+    const direction = body.direction;
 
-    if (!name) return jsonErr("Naam is verplicht", { status: 400 });
-
-    const row = await prisma.$transaction(async (tx) => {
-      const scanLocation = await tx.scanLocation.create({
-        data: {
-          name,
-          location: location || null,
-        },
-      });
-
-      await tx.scanTag.createMany({
-        data: [
-          {
-            scanLocationId: scanLocation.id,
-            secret: makeSecret(),
-            direction: "IN",
-          },
-          {
-            scanLocationId: scanLocation.id,
-            secret: makeSecret(),
-            direction: "OUT",
-          },
-        ],
-      });
-
-      return tx.scanLocation.findUnique({
-        where: { id: scanLocation.id },
-        select: {
-          id: true,
-          name: true,
-          location: true,
-          createdAt: true,
-          scanTags: {
-            select: {
-              id: true,
-              secret: true,
-              direction: true,
-              createdAt: true,
-            },
-            orderBy: { direction: "asc" },
-          },
-        },
-      });
+    const tag = await prisma.scanTag.create({
+      data: {
+        scanLocationId,
+        direction,
+        secret: randomSecret(),
+      },
     });
 
-    return jsonOk({ row }, { status: 201 });
-  } catch (e) {
-    return jsonErr(e?.message || "Failed to create scan location", { status: 500 });
+    return jsonOk({ tag });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ ok: false, error: "Failed to create tag" }, { status: 500 });
   }
 }
