@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Alert,
@@ -26,6 +26,7 @@ import {
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 function fmtDate(value) {
@@ -103,6 +104,7 @@ async function readJson(res) {
 
 export default function EmployeeDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
 
   const [tab, setTab] = useState(0);
@@ -111,6 +113,7 @@ export default function EmployeeDetailPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingRoster, setSavingRoster] = useState(false);
   const [savingCalendar, setSavingCalendar] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [employee, setEmployee] = useState(null);
   const [rosterDays, setRosterDays] = useState([]);
@@ -240,6 +243,28 @@ export default function EmployeeDetailPage() {
       setErr(e?.message || "Profiel opslaan mislukt.");
     } finally {
       setSavingProfile(false);
+    }
+  }
+
+  async function deleteEmployee() {
+    const ok = window.confirm(`Werknemer "${name}" verwijderen?`);
+    if (!ok) return;
+
+    setDeleting(true);
+    setErr("");
+    setInfo("");
+
+    try {
+      const res = await fetch(`/api/employees/${id}`, {
+        method: "DELETE",
+      });
+
+      await readJson(res);
+      router.push("/app/employees");
+    } catch (e) {
+      setErr(e?.message || "Werknemer verwijderen mislukt.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -467,14 +492,26 @@ export default function EmployeeDetailPage() {
                 </Box>
               </Stack>
 
-              <Button
-                variant="contained"
-                startIcon={<RefreshIcon />}
-                onClick={loadEmployee}
-                disabled={loading}
-              >
-                Verversen
-              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  startIcon={<RefreshIcon />}
+                  onClick={loadEmployee}
+                  disabled={loading}
+                >
+                  Verversen
+                </Button>
+
+                <Button
+                  color="error"
+                  variant="outlined"
+                  startIcon={<DeleteOutlineIcon />}
+                  onClick={deleteEmployee}
+                  disabled={deleting}
+                >
+                  {deleting ? "Verwijderen..." : "Verwijderen"}
+                </Button>
+              </Stack>
             </Stack>
 
             <Divider />
@@ -741,9 +778,7 @@ export default function EmployeeDetailPage() {
                                       onClick={saveCalendarRange}
                                       disabled={savingCalendar}
                                     >
-                                      {savingCalendar
-                                        ? "Opslaan..."
-                                        : "Range opslaan"}
+                                      {savingCalendar ? "Opslaan..." : "Range opslaan"}
                                     </Button>
 
                                     <Button

@@ -28,9 +28,11 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 function readJsonSafe(text) {
   try {
@@ -57,6 +59,10 @@ function expectedModeChip(mode) {
     value === "ROSTER" ? "info" : value === "CALENDAR" ? "secondary" : "default";
 
   return <Chip size="small" label={value || "-"} color={color} variant="outlined" />;
+}
+
+function generatePairCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 export default function EmployeesPage() {
@@ -127,6 +133,39 @@ export default function EmployeesPage() {
       setErr(e?.message || "Status wijzigen mislukt.");
     } finally {
       setSavingId("");
+    }
+  }
+
+  async function deleteEmployee(row) {
+    const ok = window.confirm(`Werknemer "${row.name}" verwijderen?`);
+    if (!ok) return;
+
+    setSavingId(row.id);
+    setErr("");
+    setInfo("");
+
+    try {
+      const res = await fetch(`/api/employees/${row.id}`, {
+        method: "DELETE",
+      });
+
+      await readJson(res);
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      setInfo("Werknemer verwijderd.");
+    } catch (e) {
+      setErr(e?.message || "Werknemer verwijderen mislukt.");
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  async function copyText(text, message = "Gekopieerd.") {
+    try {
+      await navigator.clipboard.writeText(text || "");
+      setErr("");
+      setInfo(message);
+    } catch {
+      setErr("Kopiëren is niet gelukt.");
     }
   }
 
@@ -253,7 +292,21 @@ export default function EmployeesPage() {
                           </Button>
                         </TableCell>
 
-                        <TableCell>{row.pairCode || "-"}</TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <span>{row.pairCode || "-"}</span>
+                            <Tooltip title="Kopieer PairCode">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  copyText(row.pairCode || "", "PairCode gekopieerd.")
+                                }
+                              >
+                                <ContentCopyIcon fontSize="inherit" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
 
                         <TableCell>{expectedModeChip(row.expectedMode)}</TableCell>
 
@@ -266,11 +319,7 @@ export default function EmployeesPage() {
                         </TableCell>
 
                         <TableCell align="right">
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            justifyContent="flex-end"
-                          >
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                             <Tooltip title="Detail">
                               <IconButton
                                 component={Link}
@@ -288,6 +337,15 @@ export default function EmployeesPage() {
                                 <EditOutlinedIcon />
                               </IconButton>
                             </Tooltip>
+
+                            <Tooltip title="Verwijderen">
+                              <IconButton
+                                onClick={() => deleteEmployee(row)}
+                                disabled={savingId === row.id}
+                              >
+                                <DeleteOutlineIcon />
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -296,6 +354,15 @@ export default function EmployeesPage() {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                onClick={() => copyText(generatePairCode(), "Nieuwe PairCode gekopieerd.")}
+              >
+                Genereer PairCode
+              </Button>
+            </Stack>
 
             <Typography variant="caption" color="text.secondary">
               {lastRefresh
