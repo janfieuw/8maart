@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Employee {
+  id           String                @id @default(cuid())
+  name         String
+  pairCode     String                @unique
+  active       Boolean               @default(true)
+  createdAt    DateTime              @default(now())
+  expectedMode ExpectedMode          @default(ROSTER)
+  devices      Device[]
+  calendarDays EmployeeCalendarDay[]
+  rosterDays   EmployeeRosterDay[]
+  scanEvents   ScanEvent[]
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  employeeId  String
+  deviceToken String   @unique
+  createdAt   DateTime @default(now())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model EmployeeRosterDay {
+  id              String   @id @default(cuid())
+  employeeId      String
+  weekday         Int
+  expectedMinutes Int
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, weekday])
+  @@index([employeeId, weekday])
+}
+
+model EmployeeCalendarDay {
+  id              String   @id @default(cuid())
+  employeeId      String
+  date            DateTime @db.Date
+  expectedMinutes Int
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+}
+
+model ScanLocation {
+  id        String    @id @default(cuid())
+  name      String
+  location  String?
+  createdAt DateTime  @default(now())
+  scanTags  ScanTag[]
+}
+
+model ScanTag {
+  id             String        @id @default(cuid())
+  secret         String        @unique
+  createdAt      DateTime      @default(now())
+  direction      ScanDirection
+  scanLocationId String
+  scanEvents     ScanEvent[]
+  scanLocation   ScanLocation  @relation(fields: [scanLocationId], references: [id], onDelete: Cascade)
+
+  @@unique([scanLocationId, direction])
+  @@index([scanLocationId])
+}
+
+model ScanEvent {
+  id         String   @id @default(cuid())
+  employeeId String
+  scanTagId  String
+  type       ScanType
+  scannedAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  scanTag    ScanTag  @relation(fields: [scanTagId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, scannedAt])
+  @@index([scanTagId, scannedAt])
+}
+
+enum ExpectedMode {
+  ROSTER
+  CALENDAR
+}
+
+enum ScanDirection {
+  IN
+  OUT
+}
+
+enum ScanType {
+  IN
+  OUT
+}
