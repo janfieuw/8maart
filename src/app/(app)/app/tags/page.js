@@ -244,101 +244,107 @@ export default function TagsPage() {
   function printQrLabel() {
     if (!qrRow) return;
 
-    const inTag = getTagByDirection(qrRow, "IN");
-    const outTag = getTagByDirection(qrRow, "OUT");
+    const templateUrl = `${window.location.origin}/templates/scantag-template.png`;
 
-    const inUrl = buildPublicScanUrl(inTag?.secret || "");
-    const outUrl = buildPublicScanUrl(outTag?.secret || "");
-
-    const name = qrRow.name || "Scanlocatie";
-    const location = qrRow.location || "-";
-
-    const win = window.open("", "_blank", "width=1100,height=1200");
+    const win = window.open("", "_blank", "width=1400,height=1000");
     if (!win) {
       setErr("Printvenster kon niet geopend worden.");
       return;
     }
 
     win.document.write(`
-      <html>
-        <head>
-          <title>ScanTag QR - ${name}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 24px;
-              color: #111;
-            }
-            .sheet {
-              max-width: 1000px;
-              margin: 0 auto;
-              border: 2px solid #111;
-              padding: 24px;
-            }
-            .title {
-              font-size: 30px;
-              font-weight: 700;
-              margin-bottom: 8px;
-            }
-            .meta {
-              font-size: 16px;
-              margin: 6px 0;
-            }
-            .grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 24px;
-              margin-top: 24px;
-            }
-            .box {
-              border: 2px solid #111;
-              padding: 16px;
-              text-align: center;
-            }
-            .dir {
-              font-size: 26px;
-              font-weight: 700;
-              margin-bottom: 12px;
-            }
-            .box img {
-              width: 280px;
-              height: 280px;
-            }
-            .url {
-              margin-top: 12px;
-              font-family: monospace;
-              font-size: 14px;
-              word-break: break-all;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="sheet">
-            <div class="title">${name}</div>
-            <div class="meta"><strong>Locatie:</strong> ${location}</div>
+<html>
+<head>
+  <title>ScanTag PDF - ${qrRow?.name || "Scanlocatie"}</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
 
-            <div class="grid">
-              <div class="box">
-                <div class="dir">IN</div>
-                ${qrInDataUrl ? `<img src="${qrInDataUrl}" alt="QR IN" />` : `<div>Geen QR</div>`}
-                <div class="url">${inUrl || "-"}</div>
-              </div>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: white;
+    }
 
-              <div class="box">
-                <div class="dir">OUT</div>
-                ${qrOutDataUrl ? `<img src="${qrOutDataUrl}" alt="QR OUT" />` : `<div>Geen QR</div>`}
-                <div class="url">${outUrl || "-"}</div>
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
+    .page {
+      position: relative;
+      width: 297mm;
+      height: 210mm;
+      overflow: hidden;
+      background: white;
+    }
+
+    .template {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .qr {
+      position: absolute;
+      width: 64mm;
+      height: 64mm;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .qr-left {
+      left: 43mm;
+      top: 69mm;
+    }
+
+    .qr-right {
+      left: 190mm;
+      top: 69mm;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <img class="template" src="${templateUrl}" alt="Template" />
+
+    ${
+      qrInDataUrl
+        ? `
+      <div class="qr qr-left">
+        <img src="${qrInDataUrl}" alt="QR IN" />
+      </div>
+    `
+        : ""
+    }
+
+    ${
+      qrOutDataUrl
+        ? `
+      <div class="qr qr-right">
+        <img src="${qrOutDataUrl}" alt="QR OUT" />
+      </div>
+    `
+        : ""
+    }
+  </div>
+</body>
+</html>
     `);
 
     win.document.close();
     win.focus();
-    setTimeout(() => win.print(), 300);
+
+    setTimeout(() => {
+      win.print();
+    }, 500);
   }
 
   return (
