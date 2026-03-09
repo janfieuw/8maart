@@ -130,7 +130,7 @@ export default function PublicScanPage({ params }) {
       const payload = usePairCode
         ? {
             deviceToken,
-            pairCode: String(pairCode || "").trim(),
+            pairCode: String(pairCode || "").trim().toUpperCase(),
           }
         : {
             deviceToken,
@@ -172,6 +172,7 @@ export default function PublicScanPage({ params }) {
         body: JSON.stringify({
           pairCode: cleanPairCode,
           deviceToken,
+          secret,
         }),
       });
 
@@ -213,6 +214,7 @@ export default function PublicScanPage({ params }) {
       setPairCode("");
       setSuccess(null);
       setError("");
+      autoTriedRef.current = false;
     } catch {
       setError("Toestel ontkoppelen mislukt.");
     }
@@ -342,7 +344,7 @@ export default function PublicScanPage({ params }) {
             </Alert>
           ) : null}
 
-          {(needsPairCode || (!success && !submitting && !pairing)) ? (
+          {needsPairCode ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Box component="form" onSubmit={pairAndScan}>

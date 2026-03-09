@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getDemoCompanyId } from "@/lib/demo-company";
 
 function jsonOk(data = {}, status = 200) {
   return NextResponse.json({ ok: true, ...data }, { status });
@@ -22,19 +21,40 @@ function normalizePairCode(code) {
 
 export async function POST(req) {
   try {
-    const companyId = await getDemoCompanyId();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const pairCode = normalizePairCode(body?.pairCode);
     const deviceToken = String(body?.deviceToken || "").trim();
+    const secret = String(body?.secret || "").trim();
 
     if (!pairCode) {
       return jsonError("PairCode ontbreekt", 400);
     }
 
     if (!deviceToken) {
-      return jsonError("deviceToken ontbreekt", 400);
+      return jsonError("DeviceToken ontbreekt", 400);
     }
+
+    if (!secret) {
+      return jsonError("Secret ontbreekt", 400);
+    }
+
+    const tag = await prisma.scanTag.findUnique({
+      where: { secret },
+      include: {
+        scanLocation: true,
+      },
+    });
+
+    if (!tag) {
+      return jsonError("Tag niet gevonden", 404);
+    }
+
+    if (!tag.scanLocation?.companyId) {
+      return jsonError("Scanlocatie is ongeldig", 500);
+    }
+
+    const companyId = tag.scanLocation.companyId;
 
     const employee = await prisma.employee.findFirst({
       where: {
@@ -42,15 +62,10 @@ export async function POST(req) {
         pairCode,
         active: true,
       },
-      select: {
-        id: true,
-        name: true,
-        pairCode: true,
-      },
     });
 
     if (!employee) {
-      return jsonError("Werknemer niet gevonden", 404);
+      return jsonError("Ongeldige PairCode", 404);
     }
 
     const device = await prisma.device.upsert({
@@ -59,15 +74,22 @@ export async function POST(req) {
         employeeId: employee.id,
       },
       create: {
-        employeeId: employee.id,
         deviceToken,
+        employeeId: employee.id,
       },
     });
 
     return jsonOk({
-      device,
-      employee,
-      paired: true,
+      message: "Toestel gekoppeld",
+      device: {
+        id: device.id,
+        deviceToken: device.deviceToken,
+      },
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        pairCode: employee.pairCode,
+      },
     });
   } catch (error) {
     console.error("POST /api/device/pair error:", error);

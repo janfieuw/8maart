@@ -19,16 +19,15 @@ function normalizePairCode(code) {
   return String(code || "").trim().toUpperCase();
 }
 
-export async function POST(req, context) {
+export async function POST(req, { params }) {
   try {
-    const params = await context.params;
     const secret = String(params?.secret || "").trim();
 
     if (!secret) {
       return jsonError("Secret ontbreekt", 400);
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const pairCode = normalizePairCode(body?.pairCode);
     const deviceToken = String(body?.deviceToken || "").trim();
 
@@ -43,6 +42,10 @@ export async function POST(req, context) {
       return jsonError("Tag niet gevonden", 404);
     }
 
+    if (!tag.scanLocation?.companyId) {
+      return jsonError("Scanlocatie is ongeldig", 500);
+    }
+
     const companyId = tag.scanLocation.companyId;
 
     let employee = null;
@@ -55,7 +58,10 @@ export async function POST(req, context) {
         },
       });
 
-      if (device?.employee?.active && device.employee.companyId === companyId) {
+      if (
+        device?.employee?.active &&
+        device.employee.companyId === companyId
+      ) {
         employee = device.employee;
       }
     }
@@ -71,7 +77,7 @@ export async function POST(req, context) {
     }
 
     if (!employee) {
-      return jsonError("Werknemer niet gevonden", 404);
+      return jsonError("Werknemer niet gevonden of toestel niet gekoppeld", 404);
     }
 
     const scanEvent = await prisma.scanEvent.create({
