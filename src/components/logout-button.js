@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@mui/material";
-import LogoutIcon from "@mui/icons-material/Logout";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -20,8 +20,15 @@ export default function LogoutButton() {
     <Button
       variant="outlined"
       color="inherit"
-      startIcon={<LogoutIcon />}
+      startIcon={<LogoutOutlinedIcon />}
       onClick={handleLogout}
+      sx={{
+        justifyContent: "flex-start",
+        borderColor: "#bbb",
+        color: "#222",
+        borderRadius: 3,
+      }}
+      fullWidth
     >
       Logout
     </Button>

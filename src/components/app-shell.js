@@ -5,34 +5,64 @@ import { usePathname } from "next/navigation";
 import {
   AppBar,
   Box,
-  Button,
   Divider,
   Drawer,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Stack,
   Toolbar,
   Typography,
 } from "@mui/material";
+import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import LogoutButton from "@/components/logout-button";
 
 const drawerWidth = 240;
 
 const navItems = [
-  { href: "/app/dashboard", label: "Dashboard" },
-  { href: "/app/employees", label: "Werknemers" },
-  { href: "/app/registrations", label: "Registraties" },
-  { href: "/app/tags", label: "ScanTags" },
-  { href: "/app/attendance", label: "Attendance" },
-  { href: "/app/export", label: "Export" },
+  {
+    href: "/app/dashboard",
+    label: "Dashboard",
+    icon: <DashboardOutlinedIcon />,
+  },
+  {
+    href: "/app/employees",
+    label: "Werknemers",
+    icon: <GroupOutlinedIcon />,
+  },
+  {
+    href: "/app/registrations",
+    label: "Registraties",
+    icon: <FactCheckOutlinedIcon />,
+  },
+  {
+    href: "/app/tags",
+    label: "ScanTags",
+    icon: <QrCode2OutlinedIcon />,
+  },
+  {
+    href: "/app/attendance",
+    label: "Attendance",
+    icon: <AccessTimeOutlinedIcon />,
+  },
+  {
+    href: "/app/export",
+    label: "Export",
+    icon: <FileDownloadOutlinedIcon />,
+  },
 ];
 
 export default function AppShell({ session, children }) {
   const pathname = usePathname();
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100dvh", bgcolor: "#f6f6f6" }}>
+    <Box sx={{ display: "flex", minHeight: "100dvh", bgcolor: "#f5f5f5" }}>
       <Drawer
         variant="permanent"
         sx={{
@@ -42,19 +72,37 @@ export default function AppShell({ session, children }) {
             width: drawerWidth,
             boxSizing: "border-box",
             borderRight: "1px solid #ddd",
-            bgcolor: "#fff",
+            bgcolor: "#f8f8f8",
           },
         }}
       >
-        <Toolbar>
-          <Typography variant="h5" fontWeight={900}>
-            Punctoo
-          </Typography>
+        <Toolbar
+          sx={{
+            minHeight: "72px !important",
+            display: "flex",
+            alignItems: "center",
+            px: 2.5,
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                bgcolor: "#f7c400",
+                flexShrink: 0,
+              }}
+            />
+            <Typography variant="h6" fontWeight={800}>
+              Punctoo
+            </Typography>
+          </Stack>
         </Toolbar>
 
         <Divider />
 
-        <List sx={{ px: 1, py: 2 }}>
+        <List sx={{ px: 1.5, py: 2 }}>
           {navItems.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -66,20 +114,32 @@ export default function AppShell({ session, children }) {
                 href={item.href}
                 selected={active}
                 sx={{
-                  borderRadius: 2,
+                  minHeight: 48,
+                  borderRadius: 3,
                   mb: 0.5,
+                  px: 1.5,
+                  color: "#222",
+                  "& .MuiListItemIcon-root": {
+                    color: active ? "#222" : "#666",
+                    minWidth: 38,
+                  },
                   "&.Mui-selected": {
-                    bgcolor: "#f7c40022",
+                    bgcolor: "#efe9d8",
                   },
                   "&.Mui-selected:hover": {
-                    bgcolor: "#f7c40033",
+                    bgcolor: "#e8e1cc",
+                  },
+                  "&:hover": {
+                    bgcolor: "#f0f0f0",
                   },
                 }}
               >
+                <ListItemIcon>{item.icon}</ListItemIcon>
                 <ListItemText
                   primary={item.label}
                   primaryTypographyProps={{
                     fontWeight: active ? 800 : 500,
+                    fontSize: 16,
                   }}
                 />
               </ListItemButton>
@@ -90,13 +150,15 @@ export default function AppShell({ session, children }) {
         <Box sx={{ mt: "auto", p: 2 }}>
           <Divider sx={{ mb: 2 }} />
 
-          <Stack spacing={1}>
-            <Typography variant="body2" fontWeight={700}>
-              {session?.name || session?.email || "Gebruiker"}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {session?.email || ""}
-            </Typography>
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography variant="body2" fontWeight={700}>
+                {session?.name || session?.email || "Gebruiker"}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {session?.email || ""}
+              </Typography>
+            </Box>
 
             <LogoutButton />
           </Stack>
@@ -114,8 +176,8 @@ export default function AppShell({ session, children }) {
             borderBottom: "1px solid #d8d8d8",
           }}
         >
-          <Toolbar>
-            <Typography variant="h5" fontWeight={900}>
+          <Toolbar sx={{ minHeight: "72px !important" }}>
+            <Typography variant="h5" fontWeight={800}>
               MyPunctoo
             </Typography>
           </Toolbar>
