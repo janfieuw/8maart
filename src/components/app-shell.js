@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   AppBar,
@@ -84,20 +85,21 @@ export default function AppShell({ session, children }) {
             px: 2.5,
           }}
         >
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                bgcolor: "#f7c400",
-                flexShrink: 0,
-              }}
-            />
-            <Typography variant="h6" fontWeight={800}>
-              Punctoo
-            </Typography>
-          </Stack>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Link href="/app/dashboard" style={{ display: "inline-flex" }}>
+              <Image
+                src="/templates/logo.png"
+                alt="MyPunctoo"
+                width={180}
+                height={52}
+                style={{
+                  objectFit: "contain",
+                  cursor: "pointer",
+                }}
+                priority
+              />
+            </Link>
+          </Box>
         </Toolbar>
 
         <Divider />
