@@ -1,85 +1,106 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-function jsonOk(data, init) {
-  return NextResponse.json({ ok: true, ...data }, init);
+function jsonOk(data = {}, status = 200) {
+  return NextResponse.json({ ok: true, ...data }, { status });
 }
 
-function jsonErr(error, init) {
-  return NextResponse.json({ ok: false, error }, init);
+function jsonError(error, status = 400) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    },
+    { status }
+  );
 }
 
-export async function POST(req) {
+function normalizePairCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+export async function POST(req, context) {
   try {
-    const body = await req.json();
+    const params = await context.params;
+    const secret = String(params?.secret || "").trim();
 
-    const secret = String(body?.secret || "").trim();
-    const pairCode = String(body?.pairCode || "").trim();
-
-    if (!secret) return jsonErr("Secret is required", { status: 400 });
-    if (!pairCode) return jsonErr("PairCode is required", { status: 400 });
-
-    const scanTag = await prisma.scanTag.findUnique({
-      where: { secret },
-      select: {
-        id: true,
-        secret: true,
-        direction: true,
-        scanLocation: {
-          select: {
-            id: true,
-            name: true,
-            location: true,
-          },
-        },
-      },
-    });
-
-    if (!scanTag) {
-      return jsonErr("ScanTag niet gevonden", { status: 404 });
+    if (!secret) {
+      return jsonError("Secret ontbreekt", 400);
     }
 
-    const employee = await prisma.employee.findUnique({
-      where: { pairCode },
-      select: {
-        id: true,
-        name: true,
-        pairCode: true,
-        active: true,
+    const body = await req.json();
+    const pairCode = normalizePairCode(body?.pairCode);
+    const deviceToken = String(body?.deviceToken || "").trim();
+
+    const tag = await prisma.scanTag.findUnique({
+      where: { secret },
+      include: {
+        scanLocation: true,
       },
     });
+
+    if (!tag) {
+      return jsonError("Tag niet gevonden", 404);
+    }
+
+    const companyId = tag.scanLocation.companyId;
+
+    let employee = null;
+
+    if (deviceToken) {
+      const device = await prisma.device.findUnique({
+        where: { deviceToken },
+        include: {
+          employee: true,
+        },
+      });
+
+      if (device?.employee?.active && device.employee.companyId === companyId) {
+        employee = device.employee;
+      }
+    }
+
+    if (!employee && pairCode) {
+      employee = await prisma.employee.findFirst({
+        where: {
+          companyId,
+          pairCode,
+          active: true,
+        },
+      });
+    }
 
     if (!employee) {
-      return jsonErr("PairCode onbekend", { status: 404 });
+      return jsonError("Werknemer niet gevonden", 404);
     }
 
-    if (!employee.active) {
-      return jsonErr("Werknemer is niet actief", { status: 400 });
-    }
-
-    const row = await prisma.scanEvent.create({
+    const scanEvent = await prisma.scanEvent.create({
       data: {
+        companyId,
         employeeId: employee.id,
-        scanTagId: scanTag.id,
-        type: scanTag.direction,
-      },
-      select: {
-        id: true,
-        type: true,
-        scannedAt: true,
+        scanTagId: tag.id,
+        type: tag.direction,
       },
     });
 
     return jsonOk({
-      row,
-      type: row.type,
-      employeeName: employee.name,
-      pairCode: employee.pairCode,
-      tagName: scanTag.scanLocation.name,
-      location: scanTag.scanLocation.location,
-      scannedAt: row.scannedAt,
+      message: "Scan geregistreerd",
+      type: tag.direction,
+      scannedAt: scanEvent.scannedAt,
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        pairCode: employee.pairCode,
+      },
+      scanLocation: {
+        id: tag.scanLocation.id,
+        name: tag.scanLocation.name,
+        location: tag.scanLocation.location,
+      },
+      scanEvent,
     });
-  } catch (e) {
-    return jsonErr(e?.message || "Scan failed", { status: 500 });
+  } catch (error) {
+    console.error("POST /api/scan/[secret] error:", error);
+    return jsonError("Scan mislukt", 500);
   }
 }

@@ -219,19 +219,13 @@ export default function PublicScanPage({ params }) {
   }
 
   useEffect(() => {
-    if (
-      !loading &&
-      scanTag &&
-      deviceToken &&
-      !autoTriedRef.current
-    ) {
+    if (!loading && scanTag && deviceToken && !autoTriedRef.current) {
       autoTriedRef.current = true;
       submitScan({ usePairCode: false });
     }
   }, [loading, scanTag, deviceToken]);
 
-  const needsPairCode =
-    !success && !submitting && !pairing && !!error;
+  const needsPairCode = !success && !submitting && !pairing && !!error;
 
   return (
     <Box
@@ -283,7 +277,8 @@ export default function PublicScanPage({ params }) {
               sx={{
                 borderRadius: 4,
                 border: "3px solid",
-                borderColor: direction === "OUT" ? "warning.main" : "success.main",
+                borderColor:
+                  direction === "OUT" ? "warning.main" : "success.main",
               }}
             >
               <CardContent sx={{ p: 4 }}>
