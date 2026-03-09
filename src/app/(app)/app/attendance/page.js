@@ -2,46 +2,40 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
-  Typography,
-  Stack,
-  TextField,
-  Button,
-  Alert,
+  Chip,
   CircularProgress,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
+  Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
+async function readJson(res) {
+  const text = await res.text();
+  let data = null;
 
-function toDateOnlyLocal(date) {
-  // Local date -> YYYY-MM-DD (local)
-  const y = date.getFullYear();
-  const m = pad2(date.getMonth() + 1);
-  const d = pad2(date.getDate());
-  return `${y}-${m}-${d}`;
-}
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
 
-function fmtMinutes(min) {
-  if (min == null || Number.isNaN(Number(min))) return "-";
-  const m = Math.round(Number(min));
-  const sign = m < 0 ? "-" : "";
-  const abs = Math.abs(m);
-  const h = Math.floor(abs / 60);
-  const mm = abs % 60;
-  return `${sign}${h}:${pad2(mm)}`;
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
 }
 
 function fmtDateTime(value) {
@@ -54,188 +48,138 @@ function fmtDateTime(value) {
 }
 
 function statusChip(status) {
-  const s = String(status || "").toUpperCase();
-
-  let color = "default";
-  let label = s || "-";
-
-  // MVP status set uit attendance route:
-  // OPEN, PRESENT, ABSENT, OFF
-  if (s === "OPEN") color = "warning";
-  if (s === "PRESENT") color = "success";
-  if (s === "ABSENT") color = "error";
-  if (s === "OFF") color = "default";
-
-  return <Chip size="small" label={label} color={color} variant="outlined" />;
-}
-
-function modeChip(mode) {
-  const m = String(mode || "").toUpperCase();
-  const color = m === "CALENDAR" ? "info" : m === "ROSTER" ? "primary" : "default";
-  return <Chip size="small" label={m || "-"} color={color} variant="outlined" />;
+  const value = String(status || "").toUpperCase();
+  const color = value === "IN" ? "success" : value === "OUT" ? "warning" : "default";
+  return <Chip size="small" label={value || "-"} color={color} variant="outlined" />;
 }
 
 export default function AttendancePage() {
-  const today = useMemo(() => new Date(), []);
-  const [from, setFrom] = useState(() => toDateOnlyLocal(today));
-  const [to, setTo] = useState(() => toDateOnlyLocal(today));
-
-  const [rows, setRows] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
 
-  async function load() {
+  async function loadData() {
     setLoading(true);
     setErr("");
+
     try {
-      const qs = new URLSearchParams({ from, to }).toString();
-      const res = await fetch(`/api/attendance?${qs}`, { cache: "no-store" });
+      const [employeesRes, registrationsRes] = await Promise.all([
+        fetch("/api/employees", { cache: "no-store" }),
+        fetch("/api/registrations", { cache: "no-store" }),
+      ]);
 
-      const text = await res.text();
-      let data = null;
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        data = null;
-      }
+      const [employeesData, registrationsData] = await Promise.all([
+        readJson(employeesRes),
+        readJson(registrationsRes),
+      ]);
 
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || text || `HTTP ${res.status}`);
-      }
-
-      setRows(Array.isArray(data.rows) ? data.rows : []);
+      setEmployees(Array.isArray(employeesData.rows) ? employeesData.rows : []);
+      setRegistrations(Array.isArray(registrationsData.rows) ? registrationsData.rows : []);
       setLastRefresh(new Date());
     } catch (e) {
-      setRows([]);
-      setErr(e?.message || "Load failed");
+      setErr(e?.message || "Attendance laden mislukt.");
     } finally {
       setLoading(false);
     }
   }
 
-  // Eerste load
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadData();
   }, []);
 
-  const header = useMemo(() => {
-    const fromLabel = from || "-";
-    const toLabel = to || "-";
-    return `${fromLabel} → ${toLabel}`;
-  }, [from, to]);
+  const todayRows = useMemo(() => {
+    const byEmployee = new Map();
+
+    for (const reg of registrations) {
+      const employeeId = reg.employee?.id;
+      if (!employeeId) continue;
+
+      const list = byEmployee.get(employeeId) || [];
+      list.push(reg);
+      byEmployee.set(employeeId, list);
+    }
+
+    return employees.map((employee) => {
+      const employeeRegs = byEmployee.get(employee.id) || [];
+      const sorted = [...employeeRegs].sort(
+        (a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime()
+      );
+
+      const last = sorted[0] || null;
+
+      return {
+        employee,
+        lastType: last?.type || null,
+        lastScannedAt: last?.scannedAt || null,
+        lastLocation: last?.scanTag?.scanLocation?.name || null,
+      };
+    });
+  }, [employees, registrations]);
 
   return (
     <Box>
       <Card>
         <CardContent>
-          <Stack spacing={2}>
-            {/* Header */}
-            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+          <Stack spacing={2.5}>
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
               <Box>
-                <Typography variant="h5" fontWeight={700}>
+                <Typography variant="h4" fontWeight={800}>
                   Attendance
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Overzicht expected vs worked ({header})
+                <Typography color="text.secondary">
+                  Laatste bekende status per werknemer
                 </Typography>
               </Box>
 
               <Button
                 variant="contained"
                 startIcon={<RefreshIcon />}
-                onClick={load}
+                onClick={loadData}
                 disabled={loading}
               >
-                {loading ? "Laden..." : "Verversen"}
+                Verversen
               </Button>
-            </Stack>
-
-            {/* Filters */}
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center">
-              <TextField
-                label="Van"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ width: { xs: "100%", md: 220 } }}
-              />
-
-              <TextField
-                label="Tot"
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ width: { xs: "100%", md: 220 } }}
-              />
-
-              <Button variant="outlined" onClick={load} disabled={loading}>
-                Toepassen
-              </Button>
-
-              <Box sx={{ flex: 1 }} />
-
-              <Typography variant="caption" color="text.secondary">
-                {lastRefresh ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}` : "Nog niet ververst."}
-              </Typography>
             </Stack>
 
             {err ? <Alert severity="error">{err}</Alert> : null}
 
-            {/* Table */}
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Dag</TableCell>
                     <TableCell>Werknemer</TableCell>
                     <TableCell>PairCode</TableCell>
-                    <TableCell>ExpectedMode</TableCell>
-                    <TableCell align="right">Expected</TableCell>
-                    <TableCell align="right">Worked</TableCell>
-                    <TableCell align="right">Delta</TableCell>
+                    <TableCell>Expected mode</TableCell>
                     <TableCell>Status</TableCell>
-                    <TableCell>IN</TableCell>
-                    <TableCell>OUT</TableCell>
+                    <TableCell>Laatste scan</TableCell>
+                    <TableCell>Scanlocatie</TableCell>
                   </TableRow>
                 </TableHead>
-
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={10}>
+                      <TableCell colSpan={6}>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <CircularProgress size={18} />
                           <Typography variant="body2">Laden…</Typography>
                         </Stack>
                       </TableCell>
                     </TableRow>
-                  ) : rows.length === 0 ? (
+                  ) : todayRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10}>
-                        <Typography variant="body2" color="text.secondary">
-                          Geen attendance records gevonden.
-                        </Typography>
-                      </TableCell>
+                      <TableCell colSpan={6}>Geen werknemers gevonden.</TableCell>
                     </TableRow>
                   ) : (
-                    rows.map((r) => (
-                      <TableRow key={r.id} hover>
-                        <TableCell>{r.day || "-"}</TableCell>
-                        <TableCell>{r.employeeName || "-"}</TableCell>
-                        <TableCell>{r.pairCode || "-"}</TableCell>
-                        <TableCell>{modeChip(r.expectedMode)}</TableCell>
-
-                        <TableCell align="right">{fmtMinutes(r.expectedMin)}</TableCell>
-                        <TableCell align="right">{fmtMinutes(r.workedMin)}</TableCell>
-                        <TableCell align="right">{fmtMinutes(r.deltaMin)}</TableCell>
-
-                        <TableCell>{statusChip(r.status)}</TableCell>
-                        <TableCell>{fmtDateTime(r.firstIn)}</TableCell>
-                        <TableCell>{fmtDateTime(r.lastOut)}</TableCell>
+                    todayRows.map((row) => (
+                      <TableRow key={row.employee.id} hover>
+                        <TableCell>{row.employee.name}</TableCell>
+                        <TableCell>{row.employee.pairCode}</TableCell>
+                        <TableCell>{row.employee.expectedMode}</TableCell>
+                        <TableCell>{statusChip(row.lastType)}</TableCell>
+                        <TableCell>{fmtDateTime(row.lastScannedAt)}</TableCell>
+                        <TableCell>{row.lastLocation || "-"}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -244,7 +188,9 @@ export default function AttendancePage() {
             </TableContainer>
 
             <Typography variant="caption" color="text.secondary">
-              Tip: je kan ook rechtstreeks testen via /api/attendance?from=YYYY-MM-DD&amp;to=YYYY-MM-DD.
+              {lastRefresh
+                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}`
+                : "Nog niet ververst."}
             </Typography>
           </Stack>
         </CardContent>

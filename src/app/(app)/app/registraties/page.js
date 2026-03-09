@@ -2,30 +2,41 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
-  Typography,
-  TextField,
-  MenuItem,
-  Stack,
   Chip,
+  CircularProgress,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  CircularProgress,
-  Alert,
-  Button,
+  TextField,
+  Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-function typeChip(type) {
-  const color = type === "IN" ? "success" : type === "OUT" ? "warning" : "default";
-  return <Chip size="small" label={type ?? "-"} color={color} variant="outlined" />;
+async function readJson(res) {
+  const text = await res.text();
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
 }
 
 function fmtDateTime(value) {
@@ -37,166 +48,126 @@ function fmtDateTime(value) {
   }
 }
 
-function fmtTime(value) {
-  if (!value) return "-";
-  try {
-    return new Date(value).toLocaleTimeString();
-  } catch {
-    return String(value);
-  }
+function typeChip(type) {
+  const value = String(type || "").toUpperCase();
+  const color = value === "IN" ? "success" : value === "OUT" ? "warning" : "default";
+  return <Chip size="small" label={value || "-"} color={color} variant="outlined" />;
 }
 
-export default function RegistratiesPage() {
+export default function RegistrationsPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  const [search, setSearch] = useState("");
+  const [lastRefresh, setLastRefresh] = useState(null);
 
-  const [q, setQ] = useState("");
-  const [type, setType] = useState("ALL");
-
-  async function readJson(res) {
-    const text = await res.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = null;
-    }
-    if (!res.ok || !data?.ok) {
-      throw new Error(data?.error || text || `HTTP ${res.status}`);
-    }
-    return data;
-  }
-
-  async function load() {
+  async function loadRows() {
     setLoading(true);
     setErr("");
+
     try {
       const res = await fetch("/api/registrations", { cache: "no-store" });
       const data = await readJson(res);
-      setRows(data.rows || []);
-      setLastRefreshedAt(new Date().toISOString());
+
+      setRows(Array.isArray(data.rows) ? data.rows : []);
+      setLastRefresh(new Date());
     } catch (e) {
-      setErr(e?.message || "Load failed");
+      setRows([]);
+      setErr(e?.message || "Registraties laden mislukt.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    load();
+    loadRows();
   }, []);
 
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
 
-    return rows.filter((r) => {
-      if (type !== "ALL" && r.type !== type) return false;
-      if (!needle) return true;
+    return rows.filter((row) => {
+      if (!q) return true;
 
-      const employee = r.employee?.name ?? "";
-      const pairCode = r.employee?.pairCode ?? "";
-      const tagName = r.scanTag?.scanLocation?.name ?? "";
-      const locationName = r.scanTag?.scanLocation?.location ?? "";
-      const direction = r.scanTag?.direction ?? "";
-
-      const hay = `${employee} ${pairCode} ${tagName} ${locationName} ${direction} ${r.type}`.toLowerCase();
-      return hay.includes(needle);
+      return (
+        String(row.employee?.name || "").toLowerCase().includes(q) ||
+        String(row.employee?.pairCode || "").toLowerCase().includes(q) ||
+        String(row.scanTag?.scanLocation?.name || "").toLowerCase().includes(q) ||
+        String(row.scanTag?.scanLocation?.location || "").toLowerCase().includes(q) ||
+        String(row.type || "").toLowerCase().includes(q)
+      );
     });
-  }, [rows, q, type]);
+  }, [rows, search]);
 
   return (
     <Box>
       <Card>
         <CardContent>
-          <Stack spacing={2}>
-            <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                <Box>
-                  <Typography variant="h5" fontWeight={700}>
-                    Registraties
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Overzicht van ScanEvents
-                  </Typography>
-                </Box>
+          <Stack spacing={2.5}>
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+              <Box>
+                <Typography variant="h4" fontWeight={800}>
+                  Registraties
+                </Typography>
+                <Typography color="text.secondary">
+                  Overzicht van alle scanregistraties
+                </Typography>
+              </Box>
 
-                <Button
-                  variant="contained"
-                  startIcon={<RefreshIcon />}
-                  onClick={load}
-                  disabled={loading}
-                >
-                  {loading ? "Laden..." : "Verversen"}
-                </Button>
-              </Stack>
-            </Box>
-
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField
-                label="Zoeken"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                fullWidth
-              />
-              <TextField
-                label="Type"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                select
-                sx={{ width: { xs: "100%", md: 220 } }}
+              <Button
+                variant="contained"
+                startIcon={<RefreshIcon />}
+                onClick={loadRows}
+                disabled={loading}
               >
-                <MenuItem value="ALL">Alle</MenuItem>
-                <MenuItem value="IN">IN</MenuItem>
-                <MenuItem value="OUT">OUT</MenuItem>
-              </TextField>
+                Verversen
+              </Button>
             </Stack>
 
             {err ? <Alert severity="error">{err}</Alert> : null}
+
+            <TextField
+              label="Zoeken"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              fullWidth
+            />
 
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Wanneer</TableCell>
-                    <TableCell>Type</TableCell>
+                    <TableCell>Tijdstip</TableCell>
                     <TableCell>Werknemer</TableCell>
                     <TableCell>PairCode</TableCell>
+                    <TableCell>Type</TableCell>
                     <TableCell>Scanlocatie</TableCell>
                     <TableCell>Locatie</TableCell>
-                    <TableCell>QR-richting</TableCell>
                   </TableRow>
                 </TableHead>
-
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={6}>
                         <Stack direction="row" spacing={2} alignItems="center">
                           <CircularProgress size={18} />
                           <Typography variant="body2">Laden…</Typography>
                         </Stack>
                       </TableCell>
                     </TableRow>
-                  ) : filtered.length === 0 ? (
+                  ) : filteredRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7}>
-                        <Typography variant="body2" color="text.secondary">
-                          Geen registraties gevonden.
-                        </Typography>
-                      </TableCell>
+                      <TableCell colSpan={6}>Geen registraties gevonden.</TableCell>
                     </TableRow>
                   ) : (
-                    filtered.map((r) => (
-                      <TableRow key={r.id} hover>
-                        <TableCell>{fmtDateTime(r.scannedAt)}</TableCell>
-                        <TableCell>{typeChip(r.type)}</TableCell>
-                        <TableCell>{r.employee?.name ?? "-"}</TableCell>
-                        <TableCell>{r.employee?.pairCode ?? "-"}</TableCell>
-                        <TableCell>{r.scanTag?.scanLocation?.name ?? "-"}</TableCell>
-                        <TableCell>{r.scanTag?.scanLocation?.location ?? "-"}</TableCell>
-                        <TableCell>{r.scanTag?.direction ?? "-"}</TableCell>
+                    filteredRows.map((row) => (
+                      <TableRow key={row.id} hover>
+                        <TableCell>{fmtDateTime(row.scannedAt)}</TableCell>
+                        <TableCell>{row.employee?.name || "-"}</TableCell>
+                        <TableCell>{row.employee?.pairCode || "-"}</TableCell>
+                        <TableCell>{typeChip(row.type)}</TableCell>
+                        <TableCell>{row.scanTag?.scanLocation?.name || "-"}</TableCell>
+                        <TableCell>{row.scanTag?.scanLocation?.location || "-"}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -205,7 +176,9 @@ export default function RegistratiesPage() {
             </TableContainer>
 
             <Typography variant="caption" color="text.secondary">
-              {lastRefreshedAt ? `Laatst ververst om ${fmtTime(lastRefreshedAt)}.` : "Nog niet ververst."}
+              {lastRefresh
+                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}`
+                : "Nog niet ververst."}
             </Typography>
           </Stack>
         </CardContent>

@@ -1,23 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getDemoCompanyId } from "@/lib/demo-company";
 
-function jsonOk(data, init) {
-  return NextResponse.json({ ok: true, ...data }, init);
+function jsonOk(data = {}, status = 200) {
+  return NextResponse.json({ ok: true, ...data }, { status });
 }
 
-function jsonErr(error, init) {
-  return NextResponse.json({ ok: false, error }, init);
+function jsonError(error, status = 400) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    },
+    { status }
+  );
 }
 
 export async function GET() {
   try {
+    const companyId = await getDemoCompanyId();
+
     const rows = await prisma.scanEvent.findMany({
+      where: { companyId },
       orderBy: { scannedAt: "desc" },
-      take: 200,
-      select: {
-        id: true,
-        type: true,
-        scannedAt: true,
+      take: 500,
+      include: {
         employee: {
           select: {
             id: true,
@@ -26,9 +33,7 @@ export async function GET() {
           },
         },
         scanTag: {
-          select: {
-            id: true,
-            direction: true,
+          include: {
             scanLocation: {
               select: {
                 id: true,
@@ -42,7 +47,8 @@ export async function GET() {
     });
 
     return jsonOk({ rows });
-  } catch (e) {
-    return jsonErr(e?.message || "Failed to load registrations", { status: 500 });
+  } catch (error) {
+    console.error("GET /api/registrations error:", error);
+    return jsonError("Failed to load registrations", 500);
   }
 }
