@@ -19,7 +19,7 @@ function normalizePairCode(code) {
   return String(code || "").trim().toUpperCase();
 }
 
-export async function POST(req, { params }) {
+export async function POST(request, { params }) {
   try {
     const secret = String(params?.secret || "").trim();
 
@@ -27,11 +27,11 @@ export async function POST(req, { params }) {
       return jsonError("Secret ontbreekt", 400);
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({}));
     const pairCode = normalizePairCode(body?.pairCode);
     const deviceToken = String(body?.deviceToken || "").trim();
 
-    const tag = await prisma.scanTag.findUnique({
+    const tag = await prisma.scanTag.findFirst({
       where: { secret },
       include: {
         scanLocation: true,

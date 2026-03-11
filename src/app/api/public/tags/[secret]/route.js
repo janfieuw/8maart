@@ -1,43 +1,59 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-function jsonOk(data = {}, status = 200) {
-  return NextResponse.json({ ok: true, ...data }, { status });
-}
-
-function jsonError(error, status = 400) {
-  return NextResponse.json(
-    {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    },
-    { status }
-  );
-}
-
-export async function GET(_req, context) {
+export async function GET(req, ctx) {
   try {
-    const params = await context.params;
+    const params = await ctx.params;
     const secret = String(params?.secret || "").trim();
 
     if (!secret) {
-      return jsonError("Secret ontbreekt", 400);
+      return NextResponse.json({
+        ok: false,
+        error: "Secret ontbreekt"
+      });
     }
 
-    const scanTag = await prisma.scanTag.findUnique({
-      where: { secret },
-      include: {
-        scanLocation: true,
+    const tag = await prisma.scanTag.findFirst({
+      where: {
+        secret
       },
+      include: {
+        scanLocation: {
+          include: {
+            company: true
+          }
+        }
+      }
     });
 
-    if (!scanTag) {
-      return jsonError("QR-code niet gevonden", 404);
+    if (!tag) {
+      return NextResponse.json({
+        ok: false,
+        error: "QR-code niet gevonden"
+      });
     }
 
-    return jsonOk({ scanTag });
+    return NextResponse.json({
+      ok: true,
+      scanTag: {
+        id: tag.id,
+        secret: tag.secret,
+        direction: tag.direction,
+        scanLocation: {
+          id: tag.scanLocation.id,
+          name: tag.scanLocation.name,
+          location: tag.scanLocation.location,
+          companyId: tag.scanLocation.companyId
+        }
+      }
+    });
+
   } catch (error) {
-    console.error("GET /api/public/tags/[secret] error:", error);
-    return jsonError("QR-code laden mislukt", 500);
+    console.error("Public tag lookup error:", error);
+
+    return NextResponse.json({
+      ok: false,
+      error: "Server error"
+    });
   }
 }

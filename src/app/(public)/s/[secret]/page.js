@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   Alert,
   Box,
@@ -53,10 +54,11 @@ async function readJson(res) {
   return data;
 }
 
-export default function PublicScanPage({ params }) {
-  const secret = params?.secret;
+export default function PublicScanPage() {
+  const params = useParams();
+  const secret = String(params?.secret || "").trim();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pairing, setPairing] = useState(false);
 
@@ -84,9 +86,15 @@ export default function PublicScanPage({ params }) {
     let cancelled = false;
 
     async function loadScanTag() {
+      if (!secret) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError("");
       setSuccess(null);
+      setScanTag(null);
 
       try {
         const res = await fetch(`/api/public/tags/${secret}`, {
@@ -110,9 +118,7 @@ export default function PublicScanPage({ params }) {
       }
     }
 
-    if (secret) {
-      loadScanTag();
-    }
+    loadScanTag();
 
     return () => {
       cancelled = true;
@@ -154,6 +160,11 @@ export default function PublicScanPage({ params }) {
 
   async function pairAndScan(e) {
     e?.preventDefault?.();
+
+    if (!secret || !deviceToken) {
+      setError("Secret of device token ontbreekt.");
+      return;
+    }
 
     setPairing(true);
     setError("");
@@ -221,11 +232,11 @@ export default function PublicScanPage({ params }) {
   }
 
   useEffect(() => {
-    if (!loading && scanTag && deviceToken && !autoTriedRef.current) {
+    if (!loading && scanTag && deviceToken && secret && !autoTriedRef.current) {
       autoTriedRef.current = true;
       submitScan({ usePairCode: false });
     }
-  }, [loading, scanTag, deviceToken]);
+  }, [loading, scanTag, deviceToken, secret]);
 
   const needsPairCode = !success && !submitting && !pairing && !!error;
 
@@ -268,8 +279,10 @@ export default function PublicScanPage({ params }) {
                     Locatie: {scanTag.scanLocation?.location || "-"}
                   </Typography>
                 </Stack>
+              ) : error ? (
+                <Alert severity="error">{error}</Alert>
               ) : (
-                <Alert severity="error">QR-code niet gevonden.</Alert>
+                <Alert severity="warning">Geen QR-gegevens gevonden.</Alert>
               )}
             </CardContent>
           </Card>
@@ -326,22 +339,6 @@ export default function PublicScanPage({ params }) {
                 </Stack>
               </CardContent>
             </Card>
-          ) : null}
-
-          {error ? (
-            <Alert
-              severity="error"
-              icon={<ErrorOutlineIcon />}
-              sx={{ borderRadius: 3 }}
-            >
-              {error}
-            </Alert>
-          ) : null}
-
-          {pairedEmployee && !success ? (
-            <Alert severity="info" sx={{ borderRadius: 3 }}>
-              Toestel gekoppeld aan {pairedEmployee.name}.
-            </Alert>
           ) : null}
 
           {needsPairCode ? (
