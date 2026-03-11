@@ -19,8 +19,9 @@ function normalizePairCode(code) {
   return String(code || "").trim().toUpperCase();
 }
 
-export async function POST(request, { params }) {
+export async function POST(request, context) {
   try {
+    const params = await context.params;
     const secret = String(params?.secret || "").trim();
 
     if (!secret) {
