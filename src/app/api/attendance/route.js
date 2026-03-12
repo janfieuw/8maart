@@ -110,13 +110,6 @@ function computeExpectedMinutes(employee, dayStr) {
   return 0;
 }
 
-function computeStatus({ expectedMin, workedMin, isOpen }) {
-  if (isOpen) return "OPEN";
-  if (workedMin > 0) return "PRESENT";
-  if (expectedMin > 0) return "ABSENT";
-  return "OFF";
-}
-
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -218,26 +211,23 @@ export async function GET(req) {
         const worked = computeWorkedFromEvents(dayEvents);
         const workedMin = worked.workedMin;
         const deltaMin = workedMin - expectedMin;
-        const status = computeStatus({
-          expectedMin,
-          workedMin,
-          isOpen: worked.isOpen,
-        });
 
-        rows.push({
-          id: `${employee.id}_${dayStr}`,
-          day: dayStr,
-          employeeId: employee.id,
-          employeeName: employee.name,
-          pairCode: employee.pairCode,
-          expectedMode: employee.expectedMode,
-          expectedMin,
-          workedMin,
-          deltaMin,
-          status,
-          firstIn: worked.firstIn,
-          lastOut: worked.lastOut,
-        });
+        // Alleen afgewerkte dagen tonen: minstens één IN én één OUT
+        if (worked.firstIn && worked.lastOut) {
+          rows.push({
+            id: `${employee.id}_${dayStr}`,
+            day: dayStr,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            pairCode: employee.pairCode,
+            expectedMode: employee.expectedMode,
+            expectedMin,
+            workedMin,
+            deltaMin,
+            firstIn: worked.firstIn,
+            lastOut: worked.lastOut,
+          });
+        }
       }
     }
 
