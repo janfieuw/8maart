@@ -15,7 +15,6 @@ import {
   Typography,
 } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
 import {
   clearDeviceToken,
@@ -69,6 +68,7 @@ export default function PublicScanPage() {
 
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState("");
+  const [deviceJustPaired, setDeviceJustPaired] = useState(false);
 
   const autoTriedRef = useRef(false);
 
@@ -125,22 +125,24 @@ export default function PublicScanPage() {
     };
   }, [secret]);
 
-  async function submitScan({ usePairCode = false } = {}) {
-    if (!secret || !deviceToken) return;
+  async function submitScan({ pairCodeValue = "" } = {}) {
+    if (!secret || !deviceToken) {
+      throw new Error("Secret of device token ontbreekt.");
+    }
 
     setSubmitting(true);
     setError("");
     setSuccess(null);
+    setDeviceJustPaired(false);
 
     try {
-      const payload = usePairCode
-        ? {
-            deviceToken,
-            pairCode: String(pairCode || "").trim().toUpperCase(),
-          }
-        : {
-            deviceToken,
-          };
+      const payload = {
+        deviceToken,
+      };
+
+      if (pairCodeValue) {
+        payload.pairCode = String(pairCodeValue).trim().toUpperCase();
+      }
 
       const res = await fetch(`/api/scan/${secret}`, {
         method: "POST",
@@ -151,8 +153,10 @@ export default function PublicScanPage() {
       const data = await readJson(res);
       setSuccess(data);
       setPairedEmployee(data.employee || null);
+      return data;
     } catch (e) {
       setError(e?.message || "Scan registreren mislukt.");
+      throw e;
     } finally {
       setSubmitting(false);
     }
@@ -188,20 +192,17 @@ export default function PublicScanPage() {
       });
 
       const pairData = await readJson(pairRes);
+
       setPairedEmployee(pairData.employee || null);
-
-      const scanRes = await fetch(`/api/scan/${secret}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceToken,
-        }),
+      setDeviceJustPaired(true);
+      setError("");
+      setSuccess({
+        pairedOnly: true,
+        employee: pairData.employee || null,
+        scanLocation: scanTag?.scanLocation || null,
       });
-
-      const scanData = await readJson(scanRes);
-      setSuccess(scanData);
     } catch (e) {
-      setError(e?.message || "Koppelen of scannen mislukt.");
+      setError(e?.message || "Koppelen mislukt.");
     } finally {
       setPairing(false);
     }
@@ -225,6 +226,7 @@ export default function PublicScanPage() {
       setPairCode("");
       setSuccess(null);
       setError("");
+      setDeviceJustPaired(false);
       autoTriedRef.current = false;
     } catch {
       setError("Toestel ontkoppelen mislukt.");
@@ -232,13 +234,30 @@ export default function PublicScanPage() {
   }
 
   useEffect(() => {
-    if (!loading && scanTag && deviceToken && secret && !autoTriedRef.current) {
-      autoTriedRef.current = true;
-      submitScan({ usePairCode: false });
-    }
-  }, [loading, scanTag, deviceToken, secret]);
+    async function tryAutoScan() {
+      if (
+        !loading &&
+        scanTag &&
+        deviceToken &&
+        secret &&
+        !autoTriedRef.current &&
+        !deviceJustPaired
+      ) {
+        autoTriedRef.current = true;
 
-  const needsPairCode = !success && !submitting && !pairing && !!error;
+        try {
+          await submitScan();
+        } catch {
+          // fout wordt al via setError getoond
+        }
+      }
+    }
+
+    tryAutoScan();
+  }, [loading, scanTag, deviceToken, secret, deviceJustPaired]);
+
+  const needsPairCode =
+    !success && !submitting && !pairing && !!error && !deviceJustPaired;
 
   return (
     <Box
@@ -293,18 +312,26 @@ export default function PublicScanPage() {
                 borderRadius: 4,
                 border: "3px solid",
                 borderColor:
-                  direction === "OUT" ? "warning.main" : "success.main",
+                  success?.pairedOnly || direction !== "OUT"
+                    ? "success.main"
+                    : "warning.main",
               }}
             >
               <CardContent sx={{ p: 4 }}>
                 <Stack spacing={3}>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <CheckCircleOutlineIcon
-                      color={direction === "OUT" ? "warning" : "success"}
+                      color={
+                        success?.pairedOnly || direction !== "OUT"
+                          ? "success"
+                          : "warning"
+                      }
                       sx={{ fontSize: 40 }}
                     />
                     <Typography variant="h4" fontWeight={900}>
-                      SCAN {direction || ""} GESLAAGD
+                      {success?.pairedOnly
+                        ? "SMARTPHONE SUCCESVOL GEKOPPELD"
+                        : `SCAN ${direction || ""} GESLAAGD`}
                     </Typography>
                   </Stack>
 
@@ -324,9 +351,11 @@ export default function PublicScanPage() {
                     Locatie: {success.scanLocation?.location || "-"}
                   </Typography>
 
-                  <Typography variant="h5" color="text.secondary">
-                    Tijdstip: {fmtDateTime(success.scannedAt)}
-                  </Typography>
+                  {!success?.pairedOnly ? (
+                    <Typography variant="h5" color="text.secondary">
+                      Tijdstip: {fmtDateTime(success.scannedAt)}
+                    </Typography>
+                  ) : null}
 
                   <Button
                     variant="text"
@@ -375,8 +404,14 @@ export default function PublicScanPage() {
                         borderRadius: 999,
                       }}
                     >
-                      {pairing ? "KOPPELEN..." : "KOPPEL TOESTEL EN SCAN"}
+                      {pairing ? "KOPPELEN..." : "KOPPEL TOESTEL"}
                     </Button>
+
+                    {error ? (
+                      <Alert severity="error" sx={{ borderRadius: 3 }}>
+                        {error}
+                      </Alert>
+                    ) : null}
                   </Stack>
                 </Box>
               </CardContent>
@@ -389,7 +424,7 @@ export default function PublicScanPage() {
                 <Stack direction="row" spacing={2} alignItems="center">
                   <CircularProgress size={24} />
                   <Typography variant="h6">
-                    {pairing ? "Toestel koppelen..." : "Scan registreren..."}
+                    {pairing ? "Smartphone koppelen..." : "Scan registreren..."}
                   </Typography>
                 </Stack>
               </CardContent>
