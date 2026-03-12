@@ -9,6 +9,13 @@ export function middleware(req) {
   const isAppRoute = pathname.startsWith("/app");
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
+  // Publieke scanroutes altijd toegankelijk houden
+  const isPublicScanRoute = pathname.startsWith("/s/");
+
+  if (isPublicScanRoute) {
+    return NextResponse.next();
+  }
+
   if (isAppRoute && !session) {
     const loginUrl = new URL("/login", req.url);
     return NextResponse.redirect(loginUrl);
@@ -23,5 +30,5 @@ export function middleware(req) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/login", "/register"],
+  matcher: ["/app/:path*", "/login", "/register", "/s/:path*"],
 };
