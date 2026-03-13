@@ -45,7 +45,7 @@ export default function NewEmployeePage() {
 
   const [name, setName] = useState("");
   const [pairCode, setPairCode] = useState(generatePairCode());
-  const [expectedMode, setExpectedMode] = useState("ROSTER");
+  const [expectedMode, setExpectedMode] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -55,16 +55,21 @@ export default function NewEmployeePage() {
     setErr("");
 
     try {
+      const payload = {
+        name: String(name || "").trim(),
+        pairCode: String(pairCode || "").trim(),
+      };
+
+      if (expectedMode) {
+        payload.expectedMode = expectedMode;
+      }
+
       const res = await fetch("/api/employees", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          pairCode,
-          expectedMode,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await readJson(res);
@@ -138,17 +143,16 @@ export default function NewEmployeePage() {
                     label="Expected mode"
                     onChange={(e) => setExpectedMode(e.target.value)}
                   >
+                    <MenuItem value="">
+                      <em>Geen</em>
+                    </MenuItem>
                     <MenuItem value="ROSTER">ROSTER</MenuItem>
                     <MenuItem value="CALENDAR">CALENDAR</MenuItem>
                   </Select>
                 </FormControl>
 
                 <Stack direction="row" spacing={2}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={saving}
-                  >
+                  <Button type="submit" variant="contained" disabled={saving}>
                     {saving ? "Opslaan..." : "Werknemer aanmaken"}
                   </Button>
 
