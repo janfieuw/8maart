@@ -122,6 +122,8 @@ export default function AttendancePage() {
 
       const data = await readJson(res);
 
+      console.log("ATTENDANCE DATA:", data.rows);
+
       setRows(Array.isArray(data.rows) ? data.rows : []);
       setLastRefresh(new Date());
     } catch (e) {
@@ -133,7 +135,6 @@ export default function AttendancePage() {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totals = useMemo(() => {
@@ -156,7 +157,6 @@ export default function AttendancePage() {
             <Stack
               direction={{ xs: "column", md: "row" }}
               justifyContent="space-between"
-              alignItems={{ xs: "stretch", md: "flex-start" }}
               spacing={2}
             >
               <Box>
@@ -164,16 +164,11 @@ export default function AttendancePage() {
                   Attendance
                 </Typography>
                 <Typography color="text.secondary">
-                  Afgewerkte aanwezigheden per werknemer met expected,
-                  attendance en verschil
+                  Debug versie
                 </Typography>
               </Box>
 
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1.5}
-                alignItems={{ xs: "stretch", sm: "center" }}
-              >
+              <Stack direction="row" spacing={1.5}>
                 <TextField
                   label="Van"
                   type="date"
@@ -209,43 +204,39 @@ export default function AttendancePage() {
                   <TableRow>
                     <TableCell>Datum</TableCell>
                     <TableCell>Werknemer</TableCell>
-                    <TableCell>PairCode</TableCell>
-                    <TableCell>Expected mode</TableCell>
                     <TableCell>Expected</TableCell>
-                    <TableCell>Eerste IN</TableCell>
-                    <TableCell>Laatste OUT</TableCell>
                     <TableCell>Attendance</TableCell>
                     <TableCell>Verschil</TableCell>
+                    <TableCell>DEBUG</TableCell>
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={9}>
-                        <Stack direction="row" spacing={2} alignItems="center">
-                          <CircularProgress size={18} />
-                          <Typography variant="body2">Laden…</Typography>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ) : rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9}>
-                        Geen afgewerkte attendances gevonden in deze periode.
+                      <TableCell colSpan={6}>
+                        <CircularProgress size={18} />
                       </TableCell>
                     </TableRow>
                   ) : (
                     rows.map((row) => (
-                      <TableRow key={row.id} hover>
+                      <TableRow key={row.id}>
                         <TableCell>{fmtDateOnly(row.day)}</TableCell>
                         <TableCell>{row.employeeName}</TableCell>
-                        <TableCell>{row.pairCode}</TableCell>
-                        <TableCell>{row.expectedMode}</TableCell>
-                        <TableCell>{formatMinutesToHHMM(row.expectedMin)}</TableCell>
-                        <TableCell>{fmtTime(row.firstIn)}</TableCell>
-                        <TableCell>{fmtTime(row.lastOut)}</TableCell>
-                        <TableCell>{formatMinutesToHHMM(row.workedMin)}</TableCell>
+
+                        <TableCell>
+                          {formatMinutesToHHMM(row.expectedMin)}
+                        </TableCell>
+
+                        <TableCell>
+                          {formatMinutesToHHMM(row.workedMin)}
+                        </TableCell>
+
                         <TableCell>{deltaChip(row.deltaMin)}</TableCell>
+
+                        <TableCell>
+                          exp:{row.expectedMin} | work:{row.workedMin}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -253,36 +244,19 @@ export default function AttendancePage() {
               </Table>
             </TableContainer>
 
-            {!loading && rows.length > 0 ? (
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={2}
-                  justifyContent="space-between"
-                >
-                  <Typography variant="body2">
-                    <strong>Totaal expected:</strong>{" "}
-                    {formatMinutesToHHMM(totals.expectedMin)}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Totaal attendance:</strong>{" "}
-                    {formatMinutesToHHMM(totals.workedMin)}
-                  </Typography>
-                  <Box>
-                    <Typography variant="body2" component="span" sx={{ mr: 1 }}>
-                      <strong>Totaal verschil:</strong>
-                    </Typography>
-                    {deltaChip(totals.deltaMin)}
-                  </Box>
-                </Stack>
-              </Paper>
-            ) : null}
-
-            <Typography variant="caption" color="text.secondary">
-              {lastRefresh
-                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}`
-                : "Nog niet ververst."}
-            </Typography>
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Stack direction="row" spacing={4}>
+                <Typography>
+                  Totaal expected: {formatMinutesToHHMM(totals.expectedMin)}
+                </Typography>
+                <Typography>
+                  Totaal attendance: {formatMinutesToHHMM(totals.workedMin)}
+                </Typography>
+                <Typography>
+                  Totaal verschil: {formatMinutesToHHMM(totals.deltaMin)}
+                </Typography>
+              </Stack>
+            </Paper>
           </Stack>
         </CardContent>
       </Card>
