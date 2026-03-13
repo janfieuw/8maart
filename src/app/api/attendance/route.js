@@ -86,8 +86,6 @@ function computeWorkedFromEvents(events) {
     workedMin,
     firstIn: firstIn ? firstIn.toISOString() : null,
     lastOut: lastOut ? lastOut.toISOString() : null,
-    rawCount: sorted.length,
-    rawTypes: sorted.map((e) => e.type),
   };
 }
 
@@ -107,19 +105,36 @@ function getRosterWeekdayIndex(dayStr) {
 function computeExpectedMinutes(employee, dayStr) {
   if (!employee) return 0;
 
-  if (employee.expectedMode === "ROSTER") {
+  const mode = String(employee.expectedMode || "").toUpperCase();
+
+  if (!mode) {
+    return 0;
+  }
+
+  if (mode === "ROSTER") {
+    if (!Array.isArray(employee.rosterDays) || employee.rosterDays.length === 0) {
+      return 0;
+    }
+
     const weekday = getRosterWeekdayIndex(dayStr);
-    const roster = employee.rosterDays?.find(
+
+    const roster = employee.rosterDays.find(
       (r) => Number(r.weekday) === weekday
     );
+
     return roster?.expectedMinutes ?? 0;
   }
 
-  if (employee.expectedMode === "CALENDAR") {
-    const calendar = employee.calendarDays?.find((c) => {
+  if (mode === "CALENDAR") {
+    if (!Array.isArray(employee.calendarDays) || employee.calendarDays.length === 0) {
+      return 0;
+    }
+
+    const calendar = employee.calendarDays.find((c) => {
       const cDay = formatDateOnlyUTC(new Date(c.date));
       return cDay === dayStr;
     });
+
     return calendar?.expectedMinutes ?? 0;
   }
 
@@ -132,7 +147,6 @@ export async function GET(req) {
 
     const fromStr = searchParams.get("from");
     const toStr = searchParams.get("to");
-    const debug = searchParams.get("debug") === "1";
 
     const today = formatDateOnlyUTC(new Date());
 
@@ -232,7 +246,6 @@ export async function GET(req) {
         const key = `${employee.id}__${dayStr}`;
         const dayEvents = eventsByEmployeeDay.get(key) || [];
 
-        const weekdayDebug = getRosterWeekdayIndex(dayStr);
         const expectedMin = computeExpectedMinutes(employee, dayStr);
         const worked = computeWorkedFromEvents(dayEvents);
         const workedMin = worked.workedMin;
@@ -240,7 +253,7 @@ export async function GET(req) {
 
         // Alleen afgewerkte dagen tonen: minstens één IN én één OUT
         if (worked.firstIn && worked.lastOut) {
-          const row = {
+          rows.push({
             id: `${employee.id}_${dayStr}`,
             day: dayStr,
             employeeId: employee.id,
@@ -252,41 +265,9 @@ export async function GET(req) {
             deltaMin,
             firstIn: worked.firstIn,
             lastOut: worked.lastOut,
-          };
-
-          if (debug) {
-            row.employeeDebugId = employee.id;
-            row.weekdayDebug = weekdayDebug;
-            row.rosterDebug = employee.rosterDays;
-            row.calendarDebug = employee.calendarDays?.map((c) => ({
-              date: formatDateOnlyUTC(new Date(c.date)),
-              expectedMinutes: c.expectedMinutes,
-            }));
-            row.dayEventsDebug = dayEvents.map((ev) => ({
-              id: ev.id,
-              employeeId: ev.employeeId,
-              type: ev.type,
-              scannedAt: ev.scannedAt,
-            }));
-            row.workedDebug = worked;
-          }
-
-          rows.push(row);
+          });
         }
       }
-    }
-
-    if (debug) {
-      return jsonOk({
-        rows,
-        debugMeta: {
-          fromDay,
-          toDay,
-          days,
-          employeeCount: employees.length,
-          scanEventCount: scanEvents.length,
-        },
-      });
     }
 
     return jsonOk({ rows });
