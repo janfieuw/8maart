@@ -80,7 +80,9 @@ function weekdayLabel(weekday) {
 }
 
 function minutesToHoursLabel(minutes) {
-  const value = Number(minutes || 0);
+  if (minutes === "" || minutes == null) return "-";
+  const value = Number(minutes);
+  if (Number.isNaN(value)) return "-";
   const hours = value / 60;
   return `${hours} u`;
 }
@@ -121,7 +123,7 @@ export default function EmployeeDetailPage() {
 
   const [name, setName] = useState("");
   const [pairCode, setPairCode] = useState("");
-  const [expectedMode, setExpectedMode] = useState("ROSTER");
+  const [expectedMode, setExpectedMode] = useState("");
   const [active, setActive] = useState(true);
 
   const [err, setErr] = useState("");
@@ -130,22 +132,22 @@ export default function EmployeeDetailPage() {
 
   const [calendarMode, setCalendarMode] = useState("single");
   const [calendarDate, setCalendarDate] = useState("");
-  const [calendarMinutes, setCalendarMinutes] = useState(480);
+  const [calendarMinutes, setCalendarMinutes] = useState("");
 
   const [calendarFrom, setCalendarFrom] = useState("");
   const [calendarTo, setCalendarTo] = useState("");
-  const [calendarRangeDefaultMinutes, setCalendarRangeDefaultMinutes] = useState(480);
+  const [calendarRangeDefaultMinutes, setCalendarRangeDefaultMinutes] = useState("");
   const [calendarDraftDays, setCalendarDraftDays] = useState([]);
 
-  const rosterTemplate = useMemo(
+  const emptyRosterTemplate = useMemo(
     () => [
-      { weekday: 1, expectedMinutes: 480 },
-      { weekday: 2, expectedMinutes: 480 },
-      { weekday: 3, expectedMinutes: 480 },
-      { weekday: 4, expectedMinutes: 480 },
-      { weekday: 5, expectedMinutes: 480 },
-      { weekday: 6, expectedMinutes: 0 },
-      { weekday: 7, expectedMinutes: 0 },
+      { weekday: 1, expectedMinutes: "" },
+      { weekday: 2, expectedMinutes: "" },
+      { weekday: 3, expectedMinutes: "" },
+      { weekday: 4, expectedMinutes: "" },
+      { weekday: 5, expectedMinutes: "" },
+      { weekday: 6, expectedMinutes: "" },
+      { weekday: 7, expectedMinutes: "" },
     ],
     []
   );
@@ -173,17 +175,20 @@ export default function EmployeeDetailPage() {
       setEmployee(row);
       setName(row?.name || "");
       setPairCode(row?.pairCode || "");
-      setExpectedMode(row?.expectedMode || "ROSTER");
+      setExpectedMode(row?.expectedMode || "");
       setActive(!!row?.active);
 
       const apiRoster = Array.isArray(row?.rosterDays) ? row.rosterDays : [];
       const apiCalendar = Array.isArray(row?.calendarDays) ? row.calendarDays : [];
 
-      const mergedRoster = rosterTemplate.map((baseDay) => {
+      const mergedRoster = emptyRosterTemplate.map((baseDay) => {
         const existing = apiRoster.find((d) => Number(d.weekday) === baseDay.weekday);
         return {
           weekday: baseDay.weekday,
-          expectedMinutes: existing ? Number(existing.expectedMinutes || 0) : baseDay.expectedMinutes,
+          expectedMinutes:
+            existing && existing.expectedMinutes != null
+              ? Number(existing.expectedMinutes)
+              : "",
         };
       });
 
@@ -218,15 +223,18 @@ export default function EmployeeDetailPage() {
     setInfo("");
 
     try {
+      const payload = {
+        name,
+        pairCode,
+        active,
+      };
+
+      payload.expectedMode = expectedMode || null;
+
       const res = await fetch(`/api/employees/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          pairCode,
-          expectedMode,
-          active,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await readJson(res);
@@ -235,7 +243,7 @@ export default function EmployeeDetailPage() {
       setEmployee(row);
       setName(row?.name || "");
       setPairCode(row?.pairCode || "");
-      setExpectedMode(row?.expectedMode || "ROSTER");
+      setExpectedMode(row?.expectedMode || "");
       setActive(!!row?.active);
 
       setInfo("Profiel opgeslagen.");
@@ -272,7 +280,10 @@ export default function EmployeeDetailPage() {
     setRosterDays((prev) =>
       prev.map((row) =>
         row.weekday === weekday
-          ? { ...row, expectedMinutes: Number(value || 0) }
+          ? {
+              ...row,
+              expectedMinutes: value === "" ? "" : Number(value),
+            }
           : row
       )
     );
@@ -286,10 +297,12 @@ export default function EmployeeDetailPage() {
     setInfo("");
 
     try {
-      const payload = rosterDays.map((d) => ({
-        weekday: Number(d.weekday),
-        expectedMinutes: Number(d.expectedMinutes || 0),
-      }));
+      const payload = rosterDays
+        .filter((d) => d.expectedMinutes !== "" && d.expectedMinutes != null)
+        .map((d) => ({
+          weekday: Number(d.weekday),
+          expectedMinutes: Number(d.expectedMinutes || 0),
+        }));
 
       const res = await fetch(`/api/employees/${id}/roster`, {
         method: "PUT",
@@ -319,8 +332,12 @@ export default function EmployeeDetailPage() {
         throw new Error("Kies eerst een datum.");
       }
 
-      const minutes = Number(calendarMinutes || 0);
-      if (minutes < 0) {
+      if (calendarMinutes === "" || calendarMinutes == null) {
+        throw new Error("Vul expected minutes in.");
+      }
+
+      const minutes = Number(calendarMinutes);
+      if (Number.isNaN(minutes) || minutes < 0) {
         throw new Error("Expected minutes mag niet negatief zijn.");
       }
 
@@ -336,7 +353,7 @@ export default function EmployeeDetailPage() {
       await readJson(res);
 
       setCalendarDate("");
-      setCalendarMinutes(480);
+      setCalendarMinutes("");
       setInfo("Kalenderdag opgeslagen.");
       await loadEmployee();
     } catch (e) {
@@ -352,6 +369,11 @@ export default function EmployeeDetailPage() {
 
     if (!calendarFrom || !calendarTo) {
       setErr("Kies eerst een van- en tot-datum.");
+      return;
+    }
+
+    if (calendarRangeDefaultMinutes === "" || calendarRangeDefaultMinutes == null) {
+      setErr("Vul eerst standaard minutes in.");
       return;
     }
 
@@ -377,7 +399,10 @@ export default function EmployeeDetailPage() {
     setCalendarDraftDays((prev) =>
       prev.map((row) =>
         row.date === date
-          ? { ...row, expectedMinutes: Number(value || 0) }
+          ? {
+              ...row,
+              expectedMinutes: value === "" ? "" : Number(value),
+            }
           : row
       )
     );
@@ -400,9 +425,12 @@ export default function EmployeeDetailPage() {
       }
 
       for (const row of calendarDraftDays) {
-        const minutes = Number(row.expectedMinutes || 0);
+        if (row.expectedMinutes === "" || row.expectedMinutes == null) {
+          throw new Error(`Vul expected minutes in voor ${row.date}.`);
+        }
 
-        if (minutes < 0) {
+        const minutes = Number(row.expectedMinutes);
+        if (Number.isNaN(minutes) || minutes < 0) {
           throw new Error(`Expected minutes mag niet negatief zijn voor ${row.date}.`);
         }
 
@@ -422,7 +450,7 @@ export default function EmployeeDetailPage() {
 
       setCalendarFrom("");
       setCalendarTo("");
-      setCalendarRangeDefaultMinutes(480);
+      setCalendarRangeDefaultMinutes("");
       setCalendarDraftDays([]);
       setInfo(`${count} kalenderdagen opgeslagen.`);
       await loadEmployee();
@@ -484,7 +512,7 @@ export default function EmployeeDetailPage() {
                     Werknemer detail
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Profiel + planning ({expectedMode || "ROSTER"} of CALENDAR)
+                    Profiel + planning ({expectedMode || "geen expected mode"})
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Employee ID: {id || "-"}
@@ -558,6 +586,9 @@ export default function EmployeeDetailPage() {
                         label="Expected mode"
                         onChange={(e) => setExpectedMode(e.target.value)}
                       >
+                        <MenuItem value="">
+                          <em>Geen</em>
+                        </MenuItem>
                         <MenuItem value="ROSTER">ROSTER</MenuItem>
                         <MenuItem value="CALENDAR">CALENDAR</MenuItem>
                       </Select>
@@ -615,6 +646,7 @@ export default function EmployeeDetailPage() {
                                 updateRosterMinutes(row.weekday, e.target.value)
                               }
                               sx={{ width: 220 }}
+                              placeholder=""
                             />
                           </Stack>
                         </CardContent>
@@ -683,6 +715,7 @@ export default function EmployeeDetailPage() {
                                 value={calendarMinutes}
                                 onChange={(e) => setCalendarMinutes(e.target.value)}
                                 sx={{ minWidth: 220 }}
+                                placeholder=""
                               />
 
                               <Button
@@ -726,6 +759,7 @@ export default function EmployeeDetailPage() {
                                     setCalendarRangeDefaultMinutes(e.target.value)
                                   }
                                   sx={{ minWidth: 220 }}
+                                  placeholder=""
                                 />
 
                                 <Button
@@ -766,6 +800,7 @@ export default function EmployeeDetailPage() {
                                               updateDraftMinutes(row.date, e.target.value)
                                             }
                                             sx={{ width: 220 }}
+                                            placeholder=""
                                           />
                                         </Stack>
                                       </CardContent>
