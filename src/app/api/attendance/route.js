@@ -90,11 +90,16 @@ function computeWorkedFromEvents(events) {
   };
 }
 
+function getRosterWeekdayIndex(dayStr) {
+  const jsWeekday = startOfDayUTC(dayStr).getUTCDay(); // zondag=0 ... zaterdag=6
+  return jsWeekday === 0 ? 6 : jsWeekday - 1; // maandag=0 ... zondag=6
+}
+
 function computeExpectedMinutes(employee, dayStr) {
   if (!employee) return 0;
 
   if (employee.expectedMode === "ROSTER") {
-    const weekday = startOfDayUTC(dayStr).getUTCDay();
+    const weekday = getRosterWeekdayIndex(dayStr);
     const roster = employee.rosterDays?.find((r) => r.weekday === weekday);
     return roster?.expectedMinutes ?? 0;
   }
@@ -212,7 +217,6 @@ export async function GET(req) {
         const workedMin = worked.workedMin;
         const deltaMin = workedMin - expectedMin;
 
-        // Alleen afgewerkte dagen tonen: minstens één IN én één OUT
         if (worked.firstIn && worked.lastOut) {
           rows.push({
             id: `${employee.id}_${dayStr}`,
