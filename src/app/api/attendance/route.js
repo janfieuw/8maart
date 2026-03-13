@@ -98,8 +98,8 @@ function computeWorkedFromEvents(events) {
 // 6 = zaterdag
 // 7 = zondag
 function getRosterWeekdayIndex(dayStr) {
-  const jsWeekday = startOfDayUTC(dayStr).getUTCDay(); // 0=zondag ... 6=zaterdag
-  return jsWeekday === 0 ? 7 : jsWeekday; // 1=maandag ... 7=zondag
+  const jsWeekday = startOfDayUTC(dayStr).getUTCDay();
+  return jsWeekday === 0 ? 7 : jsWeekday;
 }
 
 function computeExpectedMinutes(employee, dayStr) {
@@ -232,6 +232,7 @@ export async function GET(req) {
         if (worked.firstIn && worked.lastOut) {
           rows.push({
             id: `${employee.id}_${dayStr}`,
+            employeeDebugId: employee.id,
             day: dayStr,
             employeeId: employee.id,
             employeeName: employee.name,
