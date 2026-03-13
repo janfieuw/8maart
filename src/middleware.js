@@ -4,24 +4,24 @@ const SESSION_COOKIE_NAME = "punctoo_session";
 
 export function middleware(req) {
   const { pathname } = req.nextUrl;
-  const session = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
 
   const isAppRoute = pathname.startsWith("/app");
   const isAuthPage = pathname === "/login" || pathname === "/register";
-
-  // Publieke scanroutes altijd toegankelijk houden
   const isPublicScanRoute = pathname.startsWith("/s/");
 
   if (isPublicScanRoute) {
     return NextResponse.next();
   }
 
-  if (isAppRoute && !session) {
+  // Cookie ontbreekt → login
+  if (isAppRoute && !sessionCookie) {
     const loginUrl = new URL("/login", req.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthPage && session) {
+  // Auth pagina terwijl al cookie → naar app
+  if (isAuthPage && sessionCookie) {
     const appUrl = new URL("/app/employees", req.url);
     return NextResponse.redirect(appUrl);
   }
