@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getDemoCompanyId } from "@/lib/demo-company";
 
 function jsonOk(data, init) {
   return NextResponse.json({ ok: true, ...data }, init);
@@ -89,7 +90,7 @@ function computeWorkedFromEvents(events) {
   };
 }
 
-// Database:
+// Database gebruikt:
 // 1 = maandag
 // 2 = dinsdag
 // 3 = woensdag
@@ -107,7 +108,9 @@ function computeExpectedMinutes(employee, dayStr) {
 
   const mode = String(employee.expectedMode || "").toUpperCase();
 
-  if (!mode) return 0;
+  if (!mode) {
+    return 0;
+  }
 
   if (mode === "ROSTER") {
     if (!Array.isArray(employee.rosterDays) || employee.rosterDays.length === 0) {
@@ -137,46 +140,6 @@ function computeExpectedMinutes(employee, dayStr) {
   }
 
   return 0;
-}
-
-/**
- * VUL HIER JOUW EIGEN AUTH / SESSION LOGICA IN.
- *
- * Deze functie moet het accountId van de huidige ingelogde gebruiker teruggeven.
- *
- * Voorbeelden:
- * - uit NextAuth session
- * - uit Clerk user metadata
- * - uit custom JWT/cookie
- * - uit een session tabel
- */
-async function getCurrentAccountIdOrThrow(req) {
-  // =========================================================
-  // VOORBEELD 1: custom header (tijdelijk / debug)
-  // const accountId = req.headers.get("x-account-id");
-  // if (accountId) return accountId;
-  // =========================================================
-
-  // =========================================================
-  // VOORBEELD 2: als je accountId in een cookie bewaart
-  // import { cookies } from "next/headers";
-  // const cookieStore = cookies();
-  // const accountId = cookieStore.get("accountId")?.value;
-  // if (accountId) return accountId;
-  // =========================================================
-
-  // =========================================================
-  // VOORBEELD 3: als je NextAuth gebruikt
-  // import { getServerSession } from "next-auth";
-  // import { authOptions } from "@/lib/auth";
-  // const session = await getServerSession(authOptions);
-  // const accountId = session?.user?.accountId;
-  // if (accountId) return accountId;
-  // =========================================================
-
-  throw new Error(
-    "Geen accountId gevonden voor de huidige gebruiker. Vul getCurrentAccountIdOrThrow() in met jouw auth logic."
-  );
 }
 
 export async function GET(req) {
@@ -211,12 +174,12 @@ export async function GET(req) {
     const rangeStart = startOfDayUTC(fromDay);
     const rangeEnd = endOfDayUTC(toDay);
 
-    const accountId = await getCurrentAccountIdOrThrow(req);
+    const companyId = await getDemoCompanyId();
 
     const employees = await prisma.employee.findMany({
       where: {
         active: true,
-        accountId,
+        companyId,
       },
       orderBy: [{ name: "asc" }],
       select: {
@@ -301,7 +264,7 @@ export async function GET(req) {
         const workedMin = worked.workedMin;
         const deltaMin = workedMin - expectedMin;
 
-        // Alleen dagen tonen met minstens één IN én één OUT
+        // Alleen afgewerkte dagen tonen: minstens één IN én één OUT
         if (worked.firstIn && worked.lastOut) {
           rows.push({
             id: `${employee.id}_${dayStr}`,
