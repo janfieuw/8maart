@@ -86,6 +86,8 @@ function computeWorkedFromEvents(events) {
     workedMin,
     firstIn: firstIn ? firstIn.toISOString() : null,
     lastOut: lastOut ? lastOut.toISOString() : null,
+    rawCount: sorted.length,
+    rawTypes: sorted.map((e) => e.type),
   };
 }
 
@@ -98,8 +100,8 @@ function computeWorkedFromEvents(events) {
 // 6 = zaterdag
 // 7 = zondag
 function getRosterWeekdayIndex(dayStr) {
-  const jsWeekday = startOfDayUTC(dayStr).getUTCDay();
-  return jsWeekday === 0 ? 7 : jsWeekday;
+  const jsWeekday = startOfDayUTC(dayStr).getUTCDay(); // 0=zondag ... 6=zaterdag
+  return jsWeekday === 0 ? 7 : jsWeekday; // 1=maandag ... 7=zondag
 }
 
 function computeExpectedMinutes(employee, dayStr) {
@@ -130,6 +132,7 @@ export async function GET(req) {
 
     const fromStr = searchParams.get("from");
     const toStr = searchParams.get("to");
+    const debug = searchParams.get("debug") === "1";
 
     const today = formatDateOnlyUTC(new Date());
 
@@ -171,6 +174,9 @@ export async function GET(req) {
             weekday: true,
             expectedMinutes: true,
           },
+          orderBy: {
+            weekday: "asc",
+          },
         },
         calendarDays: {
           where: {
@@ -182,6 +188,9 @@ export async function GET(req) {
           select: {
             date: true,
             expectedMinutes: true,
+          },
+          orderBy: {
+            date: "asc",
           },
         },
       },
@@ -223,6 +232,7 @@ export async function GET(req) {
         const key = `${employee.id}__${dayStr}`;
         const dayEvents = eventsByEmployeeDay.get(key) || [];
 
+        const weekdayDebug = getRosterWeekdayIndex(dayStr);
         const expectedMin = computeExpectedMinutes(employee, dayStr);
         const worked = computeWorkedFromEvents(dayEvents);
         const workedMin = worked.workedMin;
@@ -230,9 +240,8 @@ export async function GET(req) {
 
         // Alleen afgewerkte dagen tonen: minstens één IN én één OUT
         if (worked.firstIn && worked.lastOut) {
-          rows.push({
+          const row = {
             id: `${employee.id}_${dayStr}`,
-            employeeDebugId: employee.id,
             day: dayStr,
             employeeId: employee.id,
             employeeName: employee.name,
@@ -243,9 +252,41 @@ export async function GET(req) {
             deltaMin,
             firstIn: worked.firstIn,
             lastOut: worked.lastOut,
-          });
+          };
+
+          if (debug) {
+            row.employeeDebugId = employee.id;
+            row.weekdayDebug = weekdayDebug;
+            row.rosterDebug = employee.rosterDays;
+            row.calendarDebug = employee.calendarDays?.map((c) => ({
+              date: formatDateOnlyUTC(new Date(c.date)),
+              expectedMinutes: c.expectedMinutes,
+            }));
+            row.dayEventsDebug = dayEvents.map((ev) => ({
+              id: ev.id,
+              employeeId: ev.employeeId,
+              type: ev.type,
+              scannedAt: ev.scannedAt,
+            }));
+            row.workedDebug = worked;
+          }
+
+          rows.push(row);
         }
       }
+    }
+
+    if (debug) {
+      return jsonOk({
+        rows,
+        debugMeta: {
+          fromDay,
+          toDay,
+          days,
+          employeeCount: employees.length,
+          scanEventCount: scanEvents.length,
+        },
+      });
     }
 
     return jsonOk({ rows });
