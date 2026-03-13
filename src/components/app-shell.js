@@ -88,7 +88,7 @@ export default function AppShell({ session, children }) {
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Link href="/app/dashboard" style={{ display: "inline-flex" }}>
               <Image
-                src="/templates/logomypunctoooo.png"
+                src="/templates/logomypunctooooo.png"
                 alt="MyPunctoo"
                 width={180}
                 height={52}
@@ -173,7 +173,7 @@ export default function AppShell({ session, children }) {
           elevation={0}
           color="default"
           sx={{
-            bgcolor: "#f7c400",
+            bgcolor: "#024659",
             color: "#111",
             borderBottom: "1px solid #d8d8d8",
           }}
