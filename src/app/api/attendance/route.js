@@ -86,13 +86,20 @@ function computeWorkedFromEvents(events) {
     workedMin,
     firstIn: firstIn ? firstIn.toISOString() : null,
     lastOut: lastOut ? lastOut.toISOString() : null,
-    isOpen: !!openIn,
   };
 }
 
+// Database gebruikt:
+// 1 = maandag
+// 2 = dinsdag
+// 3 = woensdag
+// 4 = donderdag
+// 5 = vrijdag
+// 6 = zaterdag
+// 7 = zondag
 function getRosterWeekdayIndex(dayStr) {
-  const jsWeekday = startOfDayUTC(dayStr).getUTCDay(); // zondag=0 ... zaterdag=6
-  return jsWeekday === 0 ? 6 : jsWeekday - 1; // maandag=0 ... zondag=6
+  const jsWeekday = startOfDayUTC(dayStr).getUTCDay(); // 0=zondag ... 6=zaterdag
+  return jsWeekday === 0 ? 7 : jsWeekday; // 1=maandag ... 7=zondag
 }
 
 function computeExpectedMinutes(employee, dayStr) {
@@ -100,7 +107,9 @@ function computeExpectedMinutes(employee, dayStr) {
 
   if (employee.expectedMode === "ROSTER") {
     const weekday = getRosterWeekdayIndex(dayStr);
-    const roster = employee.rosterDays?.find((r) => r.weekday === weekday);
+    const roster = employee.rosterDays?.find(
+      (r) => Number(r.weekday) === weekday
+    );
     return roster?.expectedMinutes ?? 0;
   }
 
@@ -199,9 +208,11 @@ export async function GET(req) {
     for (const ev of scanEvents) {
       const dayStr = formatDateOnlyUTC(new Date(ev.scannedAt));
       const key = `${ev.employeeId}__${dayStr}`;
+
       if (!eventsByEmployeeDay.has(key)) {
         eventsByEmployeeDay.set(key, []);
       }
+
       eventsByEmployeeDay.get(key).push(ev);
     }
 
@@ -217,6 +228,7 @@ export async function GET(req) {
         const workedMin = worked.workedMin;
         const deltaMin = workedMin - expectedMin;
 
+        // Alleen afgewerkte dagen tonen: minstens één IN én één OUT
         if (worked.firstIn && worked.lastOut) {
           rows.push({
             id: `${employee.id}_${dayStr}`,
