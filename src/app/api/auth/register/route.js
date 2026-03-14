@@ -103,6 +103,12 @@ export async function POST(req) {
       return jsonError("Wachtwoord moet minstens 6 tekens hebben", 400);
     }
 
+    if (!vatNumber) return jsonError("BTW-nummer is verplicht", 400);
+    if (!billingStreet) return jsonError("Straat is verplicht", 400);
+    if (!billingHouseNumber) return jsonError("Huisnummer is verplicht", 400);
+    if (!billingPostalCode) return jsonError("Postcode is verplicht", 400);
+    if (!billingCity) return jsonError("Gemeente is verplicht", 400);
+
     const existingUser = await prisma.user.findUnique({
       where: { email },
       select: { id: true },
