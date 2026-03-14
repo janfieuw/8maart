@@ -7,32 +7,43 @@ datasource db {
 }
 
 model Company {
-  id                  String        @id @default(cuid())
-  name                String
-  slug                String        @unique
-  vatNumber           String?
-  phone               String?
+  id                    String        @id @default(cuid())
+  name                  String
+  slug                  String        @unique
+  vatNumber             String?
+  phone                 String?
 
-  billingStreet       String?
-  billingHouseNumber  String?
-  billingPostalCode   String?
-  billingCity         String?
-  billingCountry      String?
+  billingStreet         String?
+  billingHouseNumber    String?
+  billingPostalCode     String?
+  billingCity           String?
+  billingCountry        String?
 
-  shippingStreet      String?
-  shippingHouseNumber String?
-  shippingPostalCode  String?
-  shippingCity        String?
-  shippingCountry     String?
+  shippingStreet        String?
+  shippingHouseNumber   String?
+  shippingPostalCode    String?
+  shippingCity          String?
+  shippingCountry       String?
 
-  createdAt           DateTime      @default(now())
+  contactEmail          String?
+  subscriptionNumber    String?       @unique
+  subscriptionStatus    SubscriptionStatus @default(TRIAL)
+  trialStartsAt         DateTime?
+  trialEndsAt           DateTime?
+  activatedAt           DateTime?
+  nextRenewalAt         DateTime?
+  deactivatedAt         DateTime?
 
-  users               User[]
-  employees           Employee[]
-  scanLocations       ScanLocation[]
-  scanEvents          ScanEvent[]
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  users                 User[]
+  employees             Employee[]
+  scanLocations         ScanLocation[]
+  scanEvents            ScanEvent[]
 
   @@index([name])
+  @@index([subscriptionStatus])
 }
 
 model User {
@@ -161,4 +172,10 @@ enum ScanDirection {
 enum ScanType {
   IN
   OUT
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  INACTIVE
 }
