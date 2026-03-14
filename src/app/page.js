@@ -14,63 +14,29 @@ import {
 
 export default function HomePage() {
   return (
-    <Box sx={{ minHeight: "100dvh", bgcolor: "#f6f6f6" }}>
+    <Box
+      sx={{
+        minHeight: "100dvh",
+        bgcolor: "#f6f6f6",
+        py: { xs: 4, md: 5 },
+      }}
+    >
       <Container maxWidth="lg">
-        <Stack
-          spacing={6}
-          sx={{
-            minHeight: "100dvh",
-            justifyContent: "center",
-            py: 6,
-          }}
-        >
-          {/* LOGO */}
-          <Stack spacing={3} alignItems="center" textAlign="center">
-            <Box
-              sx={{
-                width: "100%",
-                maxWidth: 800,
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <Image
-                src="/templates/logomypunctoo.png"
-                alt="MyPunctoo"
-                width={800}
-                height={160}
-                priority
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  maxWidth: "800px",
-                }}
-              />
-            </Box>
-
-            <Typography
-              variant="h5"
-              color="text.secondary"
-              sx={{ maxWidth: 900, mx: "auto", fontWeight: 600 }}
-            >
-              Zorgeloos compliant met de arbeidswet vanaf 1 januari 2027 dankzij eenvoudige en betrouwbare tijdregistratie
-            </Typography>
-          </Stack>
-
-          {/* HERO FOTO */}
+        <Stack spacing={{ xs: 3, md: 4 }} alignItems="center">
           <Box
             sx={{
               width: "100%",
-              borderRadius: 4,
-              overflow: "hidden",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+              maxWidth: 680,
+              display: "flex",
+              justifyContent: "center",
             }}
           >
             <Image
-              src="/templates/hero.png"
-              alt="QR scan registratie"
-              width={1200}
-              height={600}
+              src="/templates/logomypunctoo.png"
+              alt="MyPunctoo"
+              width={680}
+              height={136}
+              priority
               style={{
                 width: "100%",
                 height: "auto",
@@ -79,15 +45,62 @@ export default function HomePage() {
             />
           </Box>
 
-          {/* KNOPPEN */}
+          <Typography
+            variant="h5"
+            color="text.secondary"
+            textAlign="center"
+            sx={{
+              maxWidth: 920,
+              mx: "auto",
+              fontWeight: 600,
+              lineHeight: 1.35,
+              fontSize: { xs: "1.35rem", md: "1.85rem" },
+            }}
+          >
+            Zorgeloos compliant met de arbeidswet vanaf 1 januari 2027 dankzij
+            eenvoudige en betrouwbare tijdregistratie
+          </Typography>
+
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: 760,
+              borderRadius: 4,
+              overflow: "hidden",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+            }}
+          >
+            <Image
+              src="/templates/hero.png"
+              alt="QR scan registratie"
+              width={1200}
+              height={700}
+              priority
+              style={{
+                width: "100%",
+                height: "auto",
+                display: "block",
+              }}
+            />
+          </Box>
+
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={3}
-            justifyContent="center"
+            sx={{
+              width: "100%",
+              alignItems: "stretch",
+            }}
           >
-            <Card sx={{ flex: 1, borderRadius: 4 }}>
-              <CardContent sx={{ p: 4 }}>
-                <Stack spacing={3}>
+            <Card
+              sx={{
+                flex: 1,
+                borderRadius: 4,
+                boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, md: 4 } }}>
+                <Stack spacing={2.5}>
                   <Typography variant="h5" fontWeight={800}>
                     Voor nieuwe klanten
                   </Typography>
@@ -102,6 +115,7 @@ export default function HomePage() {
                     href="/register"
                     variant="contained"
                     size="large"
+                    sx={{ minHeight: 52 }}
                   >
                     Account aanmaken
                   </Button>
@@ -109,9 +123,15 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            <Card sx={{ flex: 1, borderRadius: 4 }}>
-              <CardContent sx={{ p: 4 }}>
-                <Stack spacing={3}>
+            <Card
+              sx={{
+                flex: 1,
+                borderRadius: 4,
+                boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, md: 4 } }}>
+                <Stack spacing={2.5}>
                   <Typography variant="h5" fontWeight={800}>
                     Voor bestaande klanten
                   </Typography>
@@ -126,6 +146,7 @@ export default function HomePage() {
                     href="/login"
                     variant="outlined"
                     size="large"
+                    sx={{ minHeight: 52 }}
                   >
                     Inloggen
                   </Button>

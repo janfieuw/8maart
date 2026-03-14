@@ -46,7 +46,7 @@ export default function NewEmployeePage() {
 
   const [name, setName] = useState("");
   const [pairCode, setPairCode] = useState(generatePairCode());
-  const [expectedMode, setExpectedMode] = useState("ROSTER");
+  const [expectedMode, setExpectedMode] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -106,6 +106,13 @@ export default function NewEmployeePage() {
                   onChange={(e) => setName(e.target.value)}
                   required
                   fullWidth
+                  InputLabelProps={{
+                    sx: {
+                      "& .MuiFormLabel-asterisk": {
+                        display: "none",
+                      },
+                    },
+                  }}
                 />
 
                 <TextField
@@ -120,12 +127,17 @@ export default function NewEmployeePage() {
                   <InputLabel id="expected-mode-label">
                     Kies tijdensysteem
                   </InputLabel>
+
                   <Select
                     labelId="expected-mode-label"
                     value={expectedMode}
                     label="Kies tijdensysteem"
                     onChange={(e) => setExpectedMode(e.target.value)}
                   >
+                    <MenuItem value="">
+                      <em>Geen keuze</em>
+                    </MenuItem>
+
                     <MenuItem value="ROSTER">ROOSTER</MenuItem>
                     <MenuItem value="CALENDAR">KALENDER</MenuItem>
                   </Select>
