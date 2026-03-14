@@ -24,23 +24,9 @@ export default function AuthLayout({ children }) {
             boxShadow: "0 20px 50px rgba(0,0,0,0.10)",
           }}
         >
-          {/* LINKER KANT - FORMULIER */}
           <Box
             sx={{
-              p: { xs: 4, md: 6 },
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
               bgcolor: "#ffffff",
-            }}
-          >
-            <Box sx={{ width: "100%", maxWidth: 430 }}>{children}</Box>
-          </Box>
-
-          {/* RECHTER KANT - HERO */}
-          <Box
-            sx={{
-              bgcolor: "#dff3f0",
               p: { xs: 4, md: 5 },
               display: "flex",
               flexDirection: "column",
@@ -98,6 +84,18 @@ export default function AuthLayout({ children }) {
                 />
               </Box>
             </Stack>
+          </Box>
+
+          <Box
+            sx={{
+              p: { xs: 4, md: 6 },
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "#dff3f0",
+            }}
+          >
+            <Box sx={{ width: "100%", maxWidth: 430 }}>{children}</Box>
           </Box>
         </Box>
       </Container>
