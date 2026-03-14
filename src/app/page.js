@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   Box,
@@ -23,18 +24,35 @@ export default function HomePage() {
             py: 6,
           }}
         >
-          <Stack spacing={2} textAlign="center">
-            <Typography variant="h2" fontWeight={900}>
-              Punctoo
-            </Typography>
+          <Stack spacing={3} alignItems="center" textAlign="center">
+            <Box
+              sx={{
+                width: "100%",
+                maxWidth: 800,
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <Image
+                src="/templates/logomypunctoo.png"
+                alt="MyPunctoo"
+                width={800}
+                height={160}
+                priority
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  maxWidth: "800px",
+                }}
+              />
+            </Box>
 
             <Typography
               variant="h5"
               color="text.secondary"
-              sx={{ maxWidth: 900, mx: "auto" }}
+              sx={{ maxWidth: 980, mx: "auto", fontWeight: 600 }}
             >
-              Slimme aanwezigheidsregistratie met QR-scans, werknemersplanning,
-              ScanTags en toestel-koppeling voor snelle check-ins.
+              Zorgeloos compliant met de arbeidswet vanaf 1 januari 2027 dankzij eenvoudige en betrouwbare tijdregistratie
             </Typography>
           </Stack>
 
@@ -91,47 +109,6 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </Stack>
-
-          <Card sx={{ borderRadius: 4 }}>
-            <CardContent sx={{ p: 4 }}>
-              <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={4}
-                justifyContent="space-between"
-              >
-                <Box>
-                  <Typography variant="h6" fontWeight={800} gutterBottom>
-                    Wat Punctoo doet
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Beheer werknemers, wijs roosters of kalenderdagen toe,
-                    genereer ScanTags en registreer aanwezigheid via QR.
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography variant="h6" fontWeight={800} gutterBottom>
-                    Gebruik op smartphone
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Werknemers kunnen hun toestel koppelen zodat latere scans
-                    automatisch verlopen zonder telkens opnieuw een PairCode in
-                    te geven.
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography variant="h6" fontWeight={800} gutterBottom>
-                    SaaS klaar
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Elke klant werkt in zijn eigen bedrijfsomgeving met aparte
-                    werknemers, scanlocaties en scanhistoriek.
-                  </Typography>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
         </Stack>
       </Container>
     </Box>

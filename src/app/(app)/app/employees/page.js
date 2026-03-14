@@ -31,7 +31,6 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 function readJsonSafe(text) {
@@ -319,9 +318,7 @@ export default function EmployeesPage() {
                           </Stack>
                         </TableCell>
 
-                        <TableCell>
-                          {expectedModeChip(row.expectedMode)}
-                        </TableCell>
+                        <TableCell>{expectedModeChip(row.expectedMode)}</TableCell>
 
                         <TableCell>
                           <Switch
@@ -333,15 +330,6 @@ export default function EmployeesPage() {
 
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Tooltip title="Detail">
-                              <IconButton
-                                component={Link}
-                                href={`/app/employees/${row.id}`}
-                              >
-                                <VisibilityOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
-
                             <Tooltip title="Bewerken">
                               <IconButton
                                 component={Link}
