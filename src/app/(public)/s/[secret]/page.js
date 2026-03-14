@@ -1,182 +1,439 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import LinkOffIcon from "@mui/icons-material/LinkOff";
+import {
+  clearDeviceToken,
+  getOrCreateDeviceToken,
+} from "@/lib/device-token";
 
-export default function PublicScanPage({ params }) {
-  const secret = useMemo(() => String(params?.secret || "").trim(), [params]);
+function fmtDateTime(value) {
+  if (!value) return "-";
+  try {
+    return new Date(value).toLocaleString("nl-BE");
+  } catch {
+    return String(value);
+  }
+}
+
+function directionChip(direction) {
+  const d = String(direction || "").toUpperCase();
+  const color = d === "IN" ? "success" : d === "OUT" ? "warning" : "default";
+  return <Chip label={d || "-"} color={color} variant="outlined" />;
+}
+
+async function readJson(res) {
+  const text = await res.text();
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
+
+export default function PublicScanPage() {
+  const params = useParams();
+  const secret = String(params?.secret || "").trim();
+
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [pairing, setPairing] = useState(false);
+
+  const [scanTag, setScanTag] = useState(null);
   const [pairCode, setPairCode] = useState("");
   const [deviceToken, setDeviceToken] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(null);
+  const [pairedEmployee, setPairedEmployee] = useState(null);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setBusy(true);
+  const [success, setSuccess] = useState(null);
+  const [error, setError] = useState("");
+  const [deviceJustPaired, setDeviceJustPaired] = useState(false);
+
+  const autoTriedRef = useRef(false);
+
+  const direction = useMemo(
+    () => String(scanTag?.direction || "").toUpperCase(),
+    [scanTag]
+  );
+
+  useEffect(() => {
+    const token = getOrCreateDeviceToken();
+    setDeviceToken(token);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadScanTag() {
+      if (!secret) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+      setSuccess(null);
+      setScanTag(null);
+
+      try {
+        const res = await fetch(`/api/public/tags/${secret}`, {
+          cache: "no-store",
+        });
+
+        const data = await readJson(res);
+
+        if (!cancelled) {
+          setScanTag(data.scanTag || null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setScanTag(null);
+          setError(e?.message || "QR-code kon niet geladen worden.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadScanTag();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [secret]);
+
+  async function submitScan({ pairCodeValue = "" } = {}) {
+    if (!secret || !deviceToken) {
+      throw new Error("Secret of device token ontbreekt.");
+    }
+
+    setSubmitting(true);
+    setError("");
+    setSuccess(null);
+    setDeviceJustPaired(false);
+
+    try {
+      const payload = {
+        deviceToken,
+      };
+
+      if (pairCodeValue) {
+        payload.pairCode = String(pairCodeValue).trim().toUpperCase();
+      }
+
+      const res = await fetch(`/api/scan/${secret}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await readJson(res);
+      setSuccess(data);
+      setPairedEmployee(data.employee || null);
+      return data;
+    } catch (e) {
+      setError(e?.message || "Scan registreren mislukt.");
+      throw e;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function pairAndScan(e) {
+    e?.preventDefault?.();
+
+    if (!secret || !deviceToken) {
+      setError("Secret of device token ontbreekt.");
+      return;
+    }
+
+    setPairing(true);
     setError("");
     setSuccess(null);
 
     try {
-      const res = await fetch(`/api/scan/${secret}`, {
+      const cleanPairCode = String(pairCode || "").trim().toUpperCase();
+
+      if (!cleanPairCode) {
+        throw new Error("Voer je PairCode in.");
+      }
+
+      const pairRes = await fetch("/api/device/pair", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pairCode: pairCode.trim(),
-          deviceToken: deviceToken.trim(),
+          pairCode: cleanPairCode,
+          deviceToken,
+          secret,
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const pairData = await readJson(pairRes);
 
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "Scan mislukt");
-      }
-
-      setSuccess(data);
-      setPairCode("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Scan mislukt");
+      setPairedEmployee(pairData.employee || null);
+      setDeviceJustPaired(true);
+      setError("");
+      setSuccess({
+        pairedOnly: true,
+        employee: pairData.employee || null,
+        direction: direction || "-",
+      });
+    } catch (e) {
+      setError(e?.message || "Koppelen mislukt.");
     } finally {
-      setBusy(false);
+      setPairing(false);
     }
   }
 
+  async function unpairDevice() {
+    if (!deviceToken) return;
+
+    try {
+      await fetch("/api/device/unpair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceToken }),
+      });
+
+      clearDeviceToken();
+      const newToken = getOrCreateDeviceToken();
+
+      setDeviceToken(newToken);
+      setPairedEmployee(null);
+      setPairCode("");
+      setSuccess(null);
+      setError("");
+      setDeviceJustPaired(false);
+      autoTriedRef.current = false;
+    } catch {
+      setError("Toestel ontkoppelen mislukt.");
+    }
+  }
+
+  useEffect(() => {
+    async function tryAutoScan() {
+      if (
+        !loading &&
+        scanTag &&
+        deviceToken &&
+        secret &&
+        !autoTriedRef.current &&
+        !deviceJustPaired
+      ) {
+        autoTriedRef.current = true;
+
+        try {
+          await submitScan();
+        } catch {
+          // fout wordt al getoond
+        }
+      }
+    }
+
+    tryAutoScan();
+  }, [loading, scanTag, deviceToken, secret, deviceJustPaired]);
+
+  const needsPairCode =
+    !success && !submitting && !pairing && !!error && !deviceJustPaired;
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        background: "#f9fafb",
-        padding: 24,
+    <Box
+      sx={{
+        minHeight: "100dvh",
+        bgcolor: "#f6f6f6",
+        py: 6,
+        px: 2,
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 480,
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 16,
-          padding: 24,
-        }}
-      >
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
-          Scan registreren
-        </h1>
+      <Box sx={{ maxWidth: 720, mx: "auto" }}>
+        <Stack spacing={3}>
+          <Box>
+            <Typography variant="h2" fontWeight={900}>
+              Punctoo
+            </Typography>
+            <Typography variant="h5" color="text.secondary">
+              Scan registreren
+            </Typography>
+          </Box>
 
-        <p style={{ color: "#6b7280", marginBottom: 20 }}>
-          Geef je pair code in om je scan te registreren.
-        </p>
+          <Card sx={{ borderRadius: 4 }}>
+            <CardContent sx={{ p: 4 }}>
+              {loading ? (
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <CircularProgress size={22} />
+                  <Typography>QR laden...</Typography>
+                </Stack>
+              ) : scanTag ? (
+                <Stack spacing={3}>
+                  <Typography variant="h3" fontWeight={900}>
+                    QR {direction || "-"}
+                  </Typography>
 
-        <div
-          style={{
-            marginBottom: 16,
-            padding: 12,
-            borderRadius: 10,
-            background: "#f3f4f6",
-            fontSize: 14,
-          }}
-        >
-          Scantag secret: <strong>{secret}</strong>
-        </div>
+                  <Box>{directionChip(direction)}</Box>
 
-        <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Pair code</label>
-          <input
-            type="text"
-            value={pairCode}
-            onChange={(e) => setPairCode(e.target.value.toUpperCase())}
-            placeholder="Bijv. AB12CD"
-            required={!deviceToken}
-            style={inputStyle}
-          />
+                  <Typography variant="h5" color="text.secondary">
+                    Bedrijf: {scanTag.companyName || "-"}
+                  </Typography>
+                </Stack>
+              ) : error ? (
+                <Alert severity="error">{error}</Alert>
+              ) : (
+                <Alert severity="warning">Geen QR-gegevens gevonden.</Alert>
+              )}
+            </CardContent>
+          </Card>
 
-          <label style={labelStyle}>Device token (optioneel)</label>
-          <input
-            type="text"
-            value={deviceToken}
-            onChange={(e) => setDeviceToken(e.target.value)}
-            placeholder="Toestel token"
-            style={inputStyle}
-          />
+          {success ? (
+            <Card
+              sx={{
+                borderRadius: 4,
+                border: "3px solid",
+                borderColor:
+                  success?.pairedOnly || direction !== "OUT"
+                    ? "success.main"
+                    : "warning.main",
+              }}
+            >
+              <CardContent sx={{ p: 4 }}>
+                <Stack spacing={3}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <CheckCircleOutlineIcon
+                      color={
+                        success?.pairedOnly || direction !== "OUT"
+                          ? "success"
+                          : "warning"
+                      }
+                      sx={{ fontSize: 40 }}
+                    />
+                    <Typography variant="h4" fontWeight={900}>
+                      {success?.pairedOnly
+                        ? "SMARTPHONE SUCCESVOL GEKOPPELD"
+                        : `SCAN ${direction || ""} GESLAAGD`}
+                    </Typography>
+                  </Stack>
 
-          <button
-            type="submit"
-            disabled={busy}
-            style={{
-              width: "100%",
-              padding: "12px 16px",
-              borderRadius: 10,
-              border: "none",
-              background: busy ? "#9ca3af" : "#111827",
-              color: "#fff",
-              cursor: busy ? "not-allowed" : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            {busy ? "Bezig..." : "Registreer scan"}
-          </button>
-        </form>
+                  <Typography variant="h5" fontWeight={700}>
+                    {success.employee?.name || pairedEmployee?.name || "-"}
+                  </Typography>
 
-        {error ? (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              borderRadius: 10,
-              background: "#fef2f2",
-              color: "#991b1b",
-            }}
-          >
-            {error}
-          </div>
-        ) : null}
+                  <Typography variant="h5" color="text.secondary">
+                    PairCode:{" "}
+                    {success.employee?.pairCode || pairedEmployee?.pairCode || "-"}
+                  </Typography>
 
-        {success ? (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              borderRadius: 10,
-              background: "#ecfdf5",
-              color: "#065f46",
-            }}
-          >
-            <div>
-              <strong>Succes</strong>
-            </div>
-            <div>Werknemer: {success.employee?.name || "-"}</div>
-            <div>Type: {success.type || "-"}</div>
-            <div>
-              Tijdstip:{" "}
-              {success.scannedAt
-                ? new Intl.DateTimeFormat("nl-BE", {
-                    dateStyle: "short",
-                    timeStyle: "medium",
-                  }).format(new Date(success.scannedAt))
-                : "-"}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
+                  <Typography variant="h5" color="text.secondary">
+                    QR-richting: {direction || "-"}
+                  </Typography>
+
+                  {!success?.pairedOnly ? (
+                    <Typography variant="h5" color="text.secondary">
+                      Tijdstip: {fmtDateTime(success.scannedAt)}
+                    </Typography>
+                  ) : null}
+
+                  <Button
+                    variant="text"
+                    color="warning"
+                    startIcon={<LinkOffIcon />}
+                    onClick={unpairDevice}
+                  >
+                    Andere werknemer? Ontkoppel dit toestel
+                  </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {needsPairCode ? (
+            <Card sx={{ borderRadius: 4 }}>
+              <CardContent sx={{ p: 4 }}>
+                <Box component="form" onSubmit={pairAndScan}>
+                  <Stack spacing={3}>
+                    <Typography variant="h4" fontWeight={800}>
+                      Eerste keer op dit toestel?
+                    </Typography>
+
+                    <Typography variant="body1" color="text.secondary">
+                      Voer je PairCode één keer in om dit toestel te koppelen.
+                    </Typography>
+
+                    <TextField
+                      label="PairCode"
+                      value={pairCode}
+                      onChange={(e) => setPairCode(e.target.value)}
+                      fullWidth
+                      autoComplete="off"
+                      disabled={loading || submitting || pairing || !scanTag}
+                    />
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      disabled={loading || submitting || pairing || !scanTag}
+                      sx={{
+                        py: 2,
+                        fontSize: 20,
+                        fontWeight: 800,
+                        borderRadius: 999,
+                      }}
+                    >
+                      {pairing ? "KOPPELEN..." : "KOPPEL TOESTEL"}
+                    </Button>
+
+                    {error ? (
+                      <Alert severity="error" sx={{ borderRadius: 3 }}>
+                        {error}
+                      </Alert>
+                    ) : null}
+                  </Stack>
+                </Box>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {!success && (submitting || pairing) ? (
+            <Card sx={{ borderRadius: 4 }}>
+              <CardContent sx={{ p: 4 }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <CircularProgress size={24} />
+                  <Typography variant="h6">
+                    {pairing ? "Smartphone koppelen..." : "Scan registreren..."}
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Typography variant="h6" color="text.secondary">
+            QR-richting: {direction || "-"}.
+            {direction ? " Je hoeft geen extra keuze te maken." : ""}
+          </Typography>
+        </Stack>
+      </Box>
+    </Box>
   );
 }
-
-const labelStyle = {
-  display: "block",
-  marginBottom: 6,
-  fontSize: 14,
-  fontWeight: 600,
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px 12px",
-  marginBottom: 14,
-  border: "1px solid #d1d5db",
-  borderRadius: 10,
-};
