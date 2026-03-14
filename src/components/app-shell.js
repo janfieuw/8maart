@@ -44,8 +44,8 @@ const navItems = [
     icon: <FactCheckOutlinedIcon />,
   },
   {
-    href: "/app/tags",
-    label: "ScanTags",
+    href: "/app/scantag",
+    label: "ScanTag",
     icon: <QrCode2OutlinedIcon />,
   },
   {

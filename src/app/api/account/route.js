@@ -65,6 +65,22 @@ function buildTrialWarning(company) {
   return null;
 }
 
+function buildBaseUrl(req) {
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost || req.headers.get("host");
+
+  if (forwardedProto && host) {
+    return `${forwardedProto}://${host}`;
+  }
+
+  if (host) {
+    return `https://${host}`;
+  }
+
+  return "";
+}
+
 const companySelect = {
   id: true,
   name: true,
@@ -91,14 +107,42 @@ const companySelect = {
   updatedAt: true,
 };
 
-export async function GET() {
+async function getCompanyAndTags(companyId, req) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: companySelect,
+  });
+
+  if (!company) {
+    return { company: null, scanTags: [] };
+  }
+
+  const baseUrl = buildBaseUrl(req);
+
+  const tags = await prisma.scanTag.findMany({
+    where: { companyId },
+    orderBy: [{ direction: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      direction: true,
+      secret: true,
+      createdAt: true,
+    },
+  });
+
+  const scanTags = tags.map((tag) => ({
+    ...tag,
+    scanUrl: baseUrl ? `${baseUrl}/s/${tag.secret}` : `/s/${tag.secret}`,
+  }));
+
+  return { company, scanTags };
+}
+
+export async function GET(req) {
   try {
     const companyId = await getDemoCompanyId();
 
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: companySelect,
-    });
+    const { company, scanTags } = await getCompanyAndTags(companyId, req);
 
     if (!company) {
       return jsonError("Bedrijf niet gevonden", 404);
@@ -106,6 +150,7 @@ export async function GET() {
 
     return jsonOk({
       company,
+      scanTags,
       warning: buildTrialWarning(company),
     });
   } catch (error) {
@@ -154,7 +199,7 @@ export async function PATCH(req) {
         return jsonError("Bedrijfsnaam is verplicht", 400);
       }
 
-      const company = await prisma.company.update({
+      await prisma.company.update({
         where: { id: companyId },
         data: {
           name,
@@ -166,11 +211,13 @@ export async function PATCH(req) {
           contactEmail,
           phone,
         },
-        select: companySelect,
       });
+
+      const { company, scanTags } = await getCompanyAndTags(companyId, req);
 
       return jsonOk({
         company,
+        scanTags,
         warning: buildTrialWarning(company),
       });
     }
@@ -207,14 +254,16 @@ export async function PATCH(req) {
         };
       }
 
-      const company = await prisma.company.update({
+      await prisma.company.update({
         where: { id: companyId },
         data,
-        select: companySelect,
       });
+
+      const { company, scanTags } = await getCompanyAndTags(companyId, req);
 
       return jsonOk({
         company,
+        scanTags,
         warning: buildTrialWarning(company),
       });
     }
