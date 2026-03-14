@@ -115,8 +115,6 @@ export async function POST(req) {
     const trialEndsAt = addDays(now, 15);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Extra race-condition bescherming:
-      // controleer slug opnieuw binnen de transactie
       let slug = requestedSlug;
       let suffix = 2;
 
@@ -177,7 +175,13 @@ export async function POST(req) {
       return { company, user };
     });
 
-    await createAndSetSession(result.user);
+    await createAndSetSession({
+      id: result.user.id,
+      companyId: result.user.companyId,
+      companyName: result.company.name,
+      email: result.user.email,
+      name: result.user.name || "",
+    });
 
     return jsonOk(
       {
@@ -185,6 +189,8 @@ export async function POST(req) {
           id: result.user.id,
           email: result.user.email,
           name: result.user.name,
+          companyId: result.user.companyId,
+          companyName: result.company.name,
         },
         company: {
           id: result.company.id,

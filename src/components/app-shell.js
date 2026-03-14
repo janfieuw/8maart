@@ -186,7 +186,7 @@ export default function AppShell({ session, children }) {
         >
           <Toolbar sx={{ minHeight: "72px !important" }}>
             <Typography variant="h5" fontWeight={800} color="white">
-              Sanitair De Baets
+              {session?.companyName || "MyPunctoo"}
             </Typography>
           </Toolbar>
         </AppBar>
