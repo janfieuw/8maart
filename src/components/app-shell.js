@@ -22,6 +22,7 @@ import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import LogoutButton from "@/components/logout-button";
 
 const drawerWidth = 240;
@@ -51,6 +52,11 @@ const navItems = [
     href: "/app/attendance",
     label: "Attendance",
     icon: <AccessTimeOutlinedIcon />,
+  },
+  {
+    href: "/app/account",
+    label: "Account",
+    icon: <BusinessOutlinedIcon />,
   },
   {
     href: "/app/export",
