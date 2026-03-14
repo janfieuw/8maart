@@ -1,199 +1,169 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Checkbox,
-  FormControlLabel,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import Link from "next/link";
-
-async function readJson(res) {
-  const text = await res.text();
-  let data = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
-
-  if (!res.ok || !data?.ok) {
-    throw new Error(data?.error || text || `HTTP ${res.status}`);
-  }
-
-  return data;
-}
 
 export default function RegisterPage() {
-  const router = useRouter();
-
-  const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
 
-  const [companyName, setCompanyName] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const [vatNumber, setVatNumber] = useState("");
-  const [phone, setPhone] = useState("");
-
-  const [billingStreet, setBillingStreet] = useState("");
-  const [billingHouseNumber, setBillingHouseNumber] = useState("");
-  const [billingPostalCode, setBillingPostalCode] = useState("");
-  const [billingCity, setBillingCity] = useState("");
-  const [billingCountry, setBillingCountry] = useState("België");
-
-  const [shippingSameAsBilling, setShippingSameAsBilling] = useState(true);
-  const [shippingStreet, setShippingStreet] = useState("");
-  const [shippingHouseNumber, setShippingHouseNumber] = useState("");
-  const [shippingPostalCode, setShippingPostalCode] = useState("");
-  const [shippingCity, setShippingCity] = useState("");
-  const [shippingCountry, setShippingCountry] = useState("België");
-
-  async function submit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setSaving(true);
     setErr("");
+    setInfo("");
+
+    const formData = new FormData(e.currentTarget);
+
+    const companyName = String(formData.get("companyName") || "").trim();
+    const name = String(formData.get("name") || "").trim();
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
 
     try {
-      await readJson(
-        await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            companyName,
-            contactName,
-            email,
-            password,
-            vatNumber,
-            phone,
-            billingStreet,
-            billingHouseNumber,
-            billingPostalCode,
-            billingCity,
-            billingCountry,
-            shippingSameAsBilling,
-            shippingStreet,
-            shippingHouseNumber,
-            shippingPostalCode,
-            shippingCity,
-            shippingCountry,
-          }),
-        })
-      );
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyName,
+          name,
+          email,
+          password,
+        }),
+      });
 
-      router.push("/app/employees");
-    } catch (e2) {
-      setErr(e2?.message || "Registratie mislukt.");
-    } finally {
-      setSaving(false);
+      const data = await res.json();
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Account aanmaken mislukt.");
+      }
+
+      setInfo("Account aangemaakt. Je kan nu inloggen.");
+      e.currentTarget.reset();
+    } catch (e) {
+      setErr(e?.message || "Account aanmaken mislukt.");
     }
   }
 
   return (
-    <Box sx={{ minHeight: "100dvh", bgcolor: "#f6f6f6", py: 6, px: 2 }}>
-      <Box sx={{ maxWidth: 860, mx: "auto" }}>
-        <Card>
-          <CardContent>
-            <Stack spacing={3}>
-              <Box>
-                <Typography variant="h3" fontWeight={900}>
-                  Punctoo registreren
-                </Typography>
-                <Typography color="text.secondary">
-                  Maak je bedrijf en account aan
-                </Typography>
-              </Box>
+    <Stack spacing={4}>
+      <Box>
+        <Typography
+          variant="h3"
+          sx={{
+            fontWeight: 800,
+            color: "#111827",
+            mb: 1,
+            fontSize: { xs: "2rem", md: "2.5rem" },
+          }}
+        >
+          Account aanmaken
+        </Typography>
 
-              {err ? <Alert severity="error">{err}</Alert> : null}
-
-              <Box component="form" onSubmit={submit}>
-                <Stack spacing={3}>
-                  <Typography variant="h6" fontWeight={800}>
-                    Account
-                  </Typography>
-
-                  <TextField label="Contactnaam" value={contactName} onChange={(e) => setContactName(e.target.value)} fullWidth />
-                  <TextField label="E-mailadres" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
-                  <TextField label="Wachtwoord" type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth />
-
-                  <Typography variant="h6" fontWeight={800}>
-                    Bedrijf
-                  </Typography>
-
-                  <TextField label="Bedrijfsnaam" value={companyName} onChange={(e) => setCompanyName(e.target.value)} fullWidth />
-                  <TextField label="BTW nummer" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} fullWidth />
-                  <TextField label="Telefoonnummer" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth />
-
-                  <Typography variant="h6" fontWeight={800}>
-                    Facturatieadres
-                  </Typography>
-
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                    <TextField label="Straat" value={billingStreet} onChange={(e) => setBillingStreet(e.target.value)} fullWidth />
-                    <TextField label="Nr" value={billingHouseNumber} onChange={(e) => setBillingHouseNumber(e.target.value)} sx={{ width: 120 }} />
-                  </Stack>
-
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                    <TextField label="Postcode" value={billingPostalCode} onChange={(e) => setBillingPostalCode(e.target.value)} />
-                    <TextField label="Gemeente" value={billingCity} onChange={(e) => setBillingCity(e.target.value)} fullWidth />
-                    <TextField label="Land" value={billingCountry} onChange={(e) => setBillingCountry(e.target.value)} />
-                  </Stack>
-
-                  <Typography variant="h6" fontWeight={800}>
-                    Leveringsadres ScanTags
-                  </Typography>
-
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={shippingSameAsBilling}
-                        onChange={(e) => setShippingSameAsBilling(e.target.checked)}
-                      />
-                    }
-                    label="Zelfde als facturatieadres"
-                  />
-
-                  {!shippingSameAsBilling ? (
-                    <>
-                      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                        <TextField label="Straat" value={shippingStreet} onChange={(e) => setShippingStreet(e.target.value)} fullWidth />
-                        <TextField label="Nr" value={shippingHouseNumber} onChange={(e) => setShippingHouseNumber(e.target.value)} sx={{ width: 120 }} />
-                      </Stack>
-
-                      <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                        <TextField label="Postcode" value={shippingPostalCode} onChange={(e) => setShippingPostalCode(e.target.value)} />
-                        <TextField label="Gemeente" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} fullWidth />
-                        <TextField label="Land" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} />
-                      </Stack>
-                    </>
-                  ) : null}
-
-                  <Stack direction="row" spacing={2}>
-                    <Button type="submit" variant="contained" disabled={saving}>
-                      {saving ? "Bezig..." : "Account aanmaken"}
-                    </Button>
-
-                    <Button component={Link} href="/login" variant="text">
-                      Ik heb al een account
-                    </Button>
-                  </Stack>
-                </Stack>
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
+        <Typography color="text.secondary">
+          Maak een nieuwe omgeving aan voor je bedrijf.
+        </Typography>
       </Box>
-    </Box>
+
+      {err ? <Alert severity="error">{err}</Alert> : null}
+      {info ? <Alert severity="success">{info}</Alert> : null}
+
+      <Box component="form" onSubmit={handleSubmit}>
+        <Stack spacing={3}>
+          <TextField
+            name="companyName"
+            label="Bedrijfsnaam"
+            required
+            fullWidth
+            InputLabelProps={{
+              sx: {
+                "& .MuiFormLabel-asterisk": {
+                  display: "none",
+                },
+              },
+            }}
+          />
+
+          <TextField
+            name="name"
+            label="Naam"
+            required
+            fullWidth
+            InputLabelProps={{
+              sx: {
+                "& .MuiFormLabel-asterisk": {
+                  display: "none",
+                },
+              },
+            }}
+          />
+
+          <TextField
+            name="email"
+            label="E-mailadres"
+            type="email"
+            required
+            fullWidth
+            InputLabelProps={{
+              sx: {
+                "& .MuiFormLabel-asterisk": {
+                  display: "none",
+                },
+              },
+            }}
+          />
+
+          <TextField
+            name="password"
+            label="Wachtwoord"
+            type="password"
+            required
+            fullWidth
+            InputLabelProps={{
+              sx: {
+                "& .MuiFormLabel-asterisk": {
+                  display: "none",
+                },
+              },
+            }}
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            sx={{
+              minHeight: 56,
+              borderRadius: 3,
+              fontWeight: 700,
+              fontSize: "1rem",
+            }}
+          >
+            Account aanmaken
+          </Button>
+
+          <Typography color="text.secondary">
+            Heb je al een account?{" "}
+            <Button
+              component={Link}
+              href="/login"
+              variant="text"
+              sx={{ p: 0, minWidth: 0, verticalAlign: "baseline" }}
+            >
+              Inloggen
+            </Button>
+          </Typography>
+        </Stack>
+      </Box>
+    </Stack>
   );
 }
