@@ -27,10 +27,10 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
@@ -55,14 +55,22 @@ async function readJson(res) {
 
 function expectedModeChip(mode) {
   const value = String(mode || "").toUpperCase();
+
+  const label =
+    value === "ROSTER"
+      ? "ROOSTER"
+      : value === "CALENDAR"
+      ? "KALENDER"
+      : value || "-";
+
   const color =
-    value === "ROSTER" ? "info" : value === "CALENDAR" ? "secondary" : "default";
+    value === "ROSTER"
+      ? "info"
+      : value === "CALENDAR"
+      ? "secondary"
+      : "default";
 
-  return <Chip size="small" label={value || "-"} color={color} variant="outlined" />;
-}
-
-function generatePairCode() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return <Chip size="small" label={label} color={color} variant="outlined" />;
 }
 
 export default function EmployeesPage() {
@@ -71,7 +79,6 @@ export default function EmployeesPage() {
   const [savingId, setSavingId] = useState("");
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
-  const [lastRefresh, setLastRefresh] = useState(null);
 
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -88,7 +95,6 @@ export default function EmployeesPage() {
 
       const data = await readJson(res);
       setRows(Array.isArray(data.rows) ? data.rows : []);
-      setLastRefresh(new Date());
     } catch (e) {
       setRows([]);
       setErr(e?.message || "Werknemers laden mislukt.");
@@ -202,21 +208,13 @@ export default function EmployeesPage() {
                 <Typography variant="h4" fontWeight={800}>
                   Werknemers
                 </Typography>
+
                 <Typography variant="body2" color="text.secondary">
-                  Beheer werknemers, PairCodes en expected mode
+                  Beheer werknemers, Koppel codes en tijdensysteem
                 </Typography>
               </Box>
 
               <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button
-                  variant="contained"
-                  startIcon={<RefreshIcon />}
-                  onClick={loadEmployees}
-                  disabled={loading}
-                >
-                  Verversen
-                </Button>
-
                 <Button
                   component={Link}
                   href="/app/employees/new"
@@ -245,6 +243,7 @@ export default function EmployeesPage() {
 
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel id="active-filter-label">Actief</InputLabel>
+
                 <Select
                   labelId="active-filter-label"
                   value={activeFilter}
@@ -263,12 +262,13 @@ export default function EmployeesPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Naam</TableCell>
-                    <TableCell>PairCode</TableCell>
-                    <TableCell>ExpectedMode</TableCell>
+                    <TableCell>Koppel Code</TableCell>
+                    <TableCell>Tijdensysteem</TableCell>
                     <TableCell>Actief</TableCell>
                     <TableCell align="right">Acties</TableCell>
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
                   {loading ? (
                     <TableRow>
@@ -276,7 +276,9 @@ export default function EmployeesPage() {
                     </TableRow>
                   ) : filteredRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5}>Geen werknemers gevonden.</TableCell>
+                      <TableCell colSpan={5}>
+                        Geen werknemers gevonden.
+                      </TableCell>
                     </TableRow>
                   ) : (
                     filteredRows.map((row) => (
@@ -286,7 +288,12 @@ export default function EmployeesPage() {
                             component={Link}
                             href={`/app/employees/${row.id}`}
                             variant="text"
-                            sx={{ p: 0, minWidth: 0, textTransform: "none", fontWeight: 700 }}
+                            sx={{
+                              p: 0,
+                              minWidth: 0,
+                              textTransform: "none",
+                              fontWeight: 700,
+                            }}
                           >
                             {row.name || "-"}
                           </Button>
@@ -295,11 +302,15 @@ export default function EmployeesPage() {
                         <TableCell>
                           <Stack direction="row" spacing={0.5} alignItems="center">
                             <span>{row.pairCode || "-"}</span>
-                            <Tooltip title="Kopieer PairCode">
+
+                            <Tooltip title="Kopieer Koppel Code">
                               <IconButton
                                 size="small"
                                 onClick={() =>
-                                  copyText(row.pairCode || "", "PairCode gekopieerd.")
+                                  copyText(
+                                    row.pairCode || "",
+                                    "Koppel Code gekopieerd."
+                                  )
                                 }
                               >
                                 <ContentCopyIcon fontSize="inherit" />
@@ -308,7 +319,9 @@ export default function EmployeesPage() {
                           </Stack>
                         </TableCell>
 
-                        <TableCell>{expectedModeChip(row.expectedMode)}</TableCell>
+                        <TableCell>
+                          {expectedModeChip(row.expectedMode)}
+                        </TableCell>
 
                         <TableCell>
                           <Switch
@@ -354,21 +367,6 @@ export default function EmployeesPage() {
                 </TableBody>
               </Table>
             </TableContainer>
-
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant="outlined"
-                onClick={() => copyText(generatePairCode(), "Nieuwe PairCode gekopieerd.")}
-              >
-                Genereer PairCode
-              </Button>
-            </Stack>
-
-            <Typography variant="caption" color="text.secondary">
-              {lastRefresh
-                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}`
-                : "Nog niet ververst."}
-            </Typography>
           </Stack>
         </CardContent>
       </Card>
