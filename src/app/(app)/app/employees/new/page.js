@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-
+import { useRouter } from "next/navigation";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -18,20 +18,46 @@ import {
   Typography,
 } from "@mui/material";
 
+function generatePairCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+function readJsonSafe(text) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readJson(res) {
+  const text = await res.text();
+  const data = readJsonSafe(text);
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
+
 export default function NewEmployeePage() {
   const router = useRouter();
 
   const [name, setName] = useState("");
-  const [pairCode, setPairCode] = useState("");
+  const [pairCode, setPairCode] = useState(generatePairCode());
   const [expectedMode, setExpectedMode] = useState("ROSTER");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [err, setErr] = useState("");
+
+  function regeneratePairCode() {
+    setPairCode(generatePairCode());
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
-
     setSaving(true);
-    setError("");
+    setErr("");
 
     try {
       const res = await fetch("/api/employees", {
@@ -40,21 +66,17 @@ export default function NewEmployeePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name,
+          name: String(name || "").trim(),
           pairCode,
           expectedMode,
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "Opslaan mislukt.");
-      }
-
+      await readJson(res);
       router.push("/app/employees");
-    } catch (err) {
-      setError(err.message);
+    } catch (e) {
+      setErr(e?.message || "Werknemer aanmaken mislukt.");
+      regeneratePairCode();
     } finally {
       setSaving(false);
     }
@@ -65,20 +87,21 @@ export default function NewEmployeePage() {
       <Card>
         <CardContent>
           <Stack spacing={3}>
-            <Stack spacing={0.5}>
+            <Box>
               <Typography variant="h4" fontWeight={800}>
                 Nieuwe werknemer
               </Typography>
-
               <Typography variant="body2" color="text.secondary">
                 Maak een nieuwe werknemer aan
               </Typography>
-            </Stack>
+            </Box>
+
+            {err ? <Alert severity="error">{err}</Alert> : null}
 
             <form onSubmit={handleSubmit}>
               <Stack spacing={3}>
                 <TextField
-                  label="Naam *"
+                  label="Naam"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -86,17 +109,19 @@ export default function NewEmployeePage() {
                 />
 
                 <TextField
-                  label="Koppel Code *"
+                  label="Koppel Code"
                   value={pairCode}
-                  onChange={(e) => setPairCode(e.target.value)}
-                  required
+                  InputProps={{ readOnly: true }}
                   fullWidth
+                  helperText="Deze code wordt automatisch gegenereerd."
                 />
 
                 <FormControl fullWidth>
-                  <InputLabel>Kies tijdensysteem</InputLabel>
-
+                  <InputLabel id="expected-mode-label">
+                    Kies tijdensysteem
+                  </InputLabel>
                   <Select
+                    labelId="expected-mode-label"
                     value={expectedMode}
                     label="Kies tijdensysteem"
                     onChange={(e) => setExpectedMode(e.target.value)}
@@ -107,18 +132,15 @@ export default function NewEmployeePage() {
                 </FormControl>
 
                 <Stack direction="row" spacing={2}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={saving}
-                  >
-                    Werknemer aanmaken
+                  <Button type="submit" variant="contained" disabled={saving}>
+                    {saving ? "Opslaan..." : "Werknemer aanmaken"}
                   </Button>
 
                   <Button
                     component={Link}
                     href="/app/employees"
                     variant="text"
+                    disabled={saving}
                   >
                     Annuleren
                   </Button>
