@@ -81,6 +81,7 @@ export async function createAndSetSession(user) {
   const token = createSessionToken({
     userId: user.id,
     companyId: user.companyId,
+    companyName: user.companyName || "",
     email: user.email,
     name: user.name || "",
     exp,

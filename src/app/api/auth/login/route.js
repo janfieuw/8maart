@@ -20,8 +20,13 @@ export async function POST(req) {
     const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
 
-    if (!email) return jsonError("E-mailadres is verplicht", 400);
-    if (!password) return jsonError("Wachtwoord is verplicht", 400);
+    if (!email) {
+      return jsonError("E-mailadres is verplicht", 400);
+    }
+
+    if (!password) {
+      return jsonError("Wachtwoord is verplicht", 400);
+    }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -31,6 +36,11 @@ export async function POST(req) {
         email: true,
         name: true,
         passwordHash: true,
+        company: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
@@ -38,12 +48,19 @@ export async function POST(req) {
       return jsonError("Ongeldige login", 401);
     }
 
-    const valid = await verifyPassword(password, user.passwordHash);
-    if (!valid) {
+    const validPassword = await verifyPassword(password, user.passwordHash);
+
+    if (!validPassword) {
       return jsonError("Ongeldige login", 401);
     }
 
-    await createAndSetSession(user);
+    await createAndSetSession({
+      id: user.id,
+      companyId: user.companyId,
+      companyName: user.company?.name || "",
+      email: user.email,
+      name: user.name || "",
+    });
 
     return jsonOk({
       user: {
@@ -51,6 +68,7 @@ export async function POST(req) {
         email: user.email,
         name: user.name,
         companyId: user.companyId,
+        companyName: user.company?.name || "",
       },
     });
   } catch (error) {
