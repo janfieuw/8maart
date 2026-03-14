@@ -24,6 +24,7 @@ export default function HomePage() {
             py: 6,
           }}
         >
+          {/* LOGO */}
           <Stack spacing={3} alignItems="center" textAlign="center">
             <Box
               sx={{
@@ -50,12 +51,35 @@ export default function HomePage() {
             <Typography
               variant="h5"
               color="text.secondary"
-              sx={{ maxWidth: 980, mx: "auto", fontWeight: 600 }}
+              sx={{ maxWidth: 900, mx: "auto", fontWeight: 600 }}
             >
               Zorgeloos compliant met de arbeidswet vanaf 1 januari 2027 dankzij eenvoudige en betrouwbare tijdregistratie
             </Typography>
           </Stack>
 
+          {/* HERO FOTO */}
+          <Box
+            sx={{
+              width: "100%",
+              borderRadius: 4,
+              overflow: "hidden",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+            }}
+          >
+            <Image
+              src="/templates/hero.png"
+              alt="QR scan registratie"
+              width={1200}
+              height={600}
+              style={{
+                width: "100%",
+                height: "auto",
+                display: "block",
+              }}
+            />
+          </Box>
+
+          {/* KNOPPEN */}
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={3}
