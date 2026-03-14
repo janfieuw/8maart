@@ -24,24 +24,36 @@ export default function AuthLayout({ children }) {
             boxShadow: "0 20px 50px rgba(0,0,0,0.10)",
           }}
         >
+          {/* LINKER KANT - FORMULIER */}
           <Box
             sx={{
-              position: "relative",
+              p: { xs: 4, md: 6 },
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "#ffffff",
+            }}
+          >
+            <Box sx={{ width: "100%", maxWidth: 430 }}>{children}</Box>
+          </Box>
+
+          {/* RECHTER KANT - HERO */}
+          <Box
+            sx={{
               bgcolor: "#dff3f0",
               p: { xs: 4, md: 5 },
               display: "flex",
               flexDirection: "column",
-              justifyContent: "space-between",
-              minHeight: { xs: 340, md: "100%" },
+              justifyContent: "flex-start",
             }}
           >
-            <Stack spacing={3} sx={{ position: "relative", zIndex: 2 }}>
-              <Box sx={{ maxWidth: 320 }}>
+            <Stack spacing={3}>
+              <Box sx={{ maxWidth: 300 }}>
                 <Image
                   src="/templates/logomypunctoo.png"
                   alt="MyPunctoo"
-                  width={320}
-                  height={64}
+                  width={300}
+                  height={60}
                   priority
                   style={{
                     width: "100%",
@@ -53,7 +65,7 @@ export default function AuthLayout({ children }) {
 
               <Typography
                 sx={{
-                  fontSize: { xs: "1.5rem", md: "2rem" },
+                  fontSize: { xs: "1.6rem", md: "2rem" },
                   fontWeight: 800,
                   lineHeight: 1.2,
                   color: "#0f172a",
@@ -62,45 +74,30 @@ export default function AuthLayout({ children }) {
               >
                 Eenvoudig aanmelden en meteen starten met MyPunctoo
               </Typography>
-            </Stack>
 
-            <Box
-              sx={{
-                mt: 4,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "flex-end",
-                position: "relative",
-                zIndex: 2,
-              }}
-            >
-              <Image
-                src="/templates/hero.png"
-                alt="MyPunctoo hero"
-                width={760}
-                height={760}
-                priority
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  maxWidth: "520px",
-                  borderRadius: "24px",
-                  display: "block",
+              <Box
+                sx={{
+                  mt: 2,
+                  display: "flex",
+                  justifyContent: "center",
                 }}
-              />
-            </Box>
-          </Box>
-
-          <Box
-            sx={{
-              p: { xs: 4, md: 6 },
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: "#ffffff",
-            }}
-          >
-            <Box sx={{ width: "100%", maxWidth: 430 }}>{children}</Box>
+              >
+                <Image
+                  src="/templates/hero.png"
+                  alt="MyPunctoo hero"
+                  width={600}
+                  height={600}
+                  priority
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    maxWidth: "420px",
+                    borderRadius: "20px",
+                    display: "block",
+                  }}
+                />
+              </Box>
+            </Stack>
           </Box>
         </Box>
       </Container>
