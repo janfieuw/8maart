@@ -1,24 +1,57 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Alert,
+  Box,
+  Card,
+  CardContent,
+  CircularProgress,
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 
-function readJson(res) {
-  return res.json().catch(() => ({}));
+async function readJson(res) {
+  const text = await res.text();
+
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
 }
 
-function StatCard({ title, value }) {
+function StatCard({ title, value, icon }) {
   return (
-    <div
-      style={{
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        padding: 16,
-        background: "#fff",
-      }}
-    >
-      <div style={{ fontSize: 14, color: "#6b7280", marginBottom: 8 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
-    </div>
+    <Card sx={{ height: "100%", borderRadius: 3 }}>
+      <CardContent sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="body1" color="text.secondary" fontWeight={500}>
+              {title}
+            </Typography>
+            <Box sx={{ color: "#024659", display: "flex", alignItems: "center" }}>
+              {icon}
+            </Box>
+          </Stack>
+
+          <Typography variant="h3" fontWeight={800}>
+            {value}
+          </Typography>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -29,40 +62,44 @@ export default function DashboardPage() {
     registrations: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
 
     async function load() {
+      setLoading(true);
+      setError("");
+
       try {
-        const [employeesRes, registrationsRes] = await Promise.all([
+        const [employeesRes, registrationsRes, accountRes] = await Promise.all([
           fetch("/api/employees", { cache: "no-store" }),
           fetch("/api/registrations", { cache: "no-store" }),
+          fetch("/api/account", { cache: "no-store" }),
         ]);
 
-        const [employeesData, registrationsData] = await Promise.all([
+        const [employeesData, registrationsData, accountData] = await Promise.all([
           readJson(employeesRes),
           readJson(registrationsRes),
+          readJson(accountRes),
         ]);
+
+        if (!active) return;
 
         const employees = Array.isArray(employeesData.rows) ? employeesData.rows : [];
         const registrations = Array.isArray(registrationsData.rows)
           ? registrationsData.rows
           : [];
-
-        const uniqueTagIds = new Set(
-          registrations.map((row) => row?.scanTag?.id).filter(Boolean)
-        );
-
-        if (!active) return;
+        const scanTags = Array.isArray(accountData.scanTags) ? accountData.scanTags : [];
 
         setStats({
           employees: employees.length,
-          scanTags: uniqueTagIds.size,
+          scanTags: scanTags.length,
           registrations: registrations.length,
         });
-      } catch (error) {
-        console.error("Dashboard load error:", error);
+      } catch (e) {
+        if (!active) return;
+        setError(e?.message || "Dashboard laden mislukt.");
       } finally {
         if (active) setLoading(false);
       }
@@ -75,25 +112,54 @@ export default function DashboardPage() {
     };
   }, []);
 
-  if (loading) {
-    return <div style={{ padding: 24 }}>Dashboard laden...</div>;
-  }
-
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 20 }}>Dashboard</h1>
+    <Box>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h4" fontWeight={800}>
+            Dashboard
+          </Typography>
+        </Box>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-        }}
-      >
-        <StatCard title="Werknemers" value={stats.employees} />
-        <StatCard title="Scantags" value={stats.scanTags} />
-        <StatCard title="Registraties" value={stats.registrations} />
-      </div>
-    </div>
+        {error ? <Alert severity="error">{error}</Alert> : null}
+
+        {loading ? (
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <CircularProgress size={22} />
+                <Typography>Dashboard laden...</Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+        ) : (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <StatCard
+                title="Werknemers"
+                value={stats.employees}
+                icon={<GroupOutlinedIcon />}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <StatCard
+                title="QR-codes"
+                value={stats.scanTags}
+                icon={<QrCode2OutlinedIcon />}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <StatCard
+                title="Registraties"
+                value={stats.registrations}
+                icon={<FactCheckOutlinedIcon />}
+              />
+            </Grid>
+          </Grid>
+        )}
+      </Stack>
+    </Box>
   );
 }
