@@ -41,20 +41,17 @@ export async function POST(req) {
 
     const tag = await prisma.scanTag.findUnique({
       where: { secret },
-      include: {
-        scanLocation: true,
-      },
     });
 
     if (!tag) {
       return jsonError("Tag niet gevonden", 404);
     }
 
-    if (!tag.scanLocation?.companyId) {
-      return jsonError("Scanlocatie is ongeldig", 500);
+    if (!tag.companyId) {
+      return jsonError("Tag is ongeldig", 500);
     }
 
-    const companyId = tag.scanLocation.companyId;
+    const companyId = tag.companyId;
 
     const employee = await prisma.employee.findFirst({
       where: {

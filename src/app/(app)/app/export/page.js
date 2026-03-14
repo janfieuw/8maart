@@ -1,135 +1,105 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Stack,
-  Typography,
-} from "@mui/material";
-import DownloadIcon from "@mui/icons-material/Download";
 
-async function readJson(res) {
-  const text = await res.text();
-  let data = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
-
-  if (!res.ok || !data?.ok) {
-    throw new Error(data?.error || text || `HTTP ${res.status}`);
-  }
-
-  return data;
+function toCsvValue(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
-function escapeCsv(value) {
-  const str = String(value ?? "");
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return new Intl.DateTimeFormat("nl-BE", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(date);
+}
+
+function downloadTextFile(filename, content, type = "text/csv;charset=utf-8;") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export default function ExportPage() {
-  const [err, setErr] = useState("");
-  const [info, setInfo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
 
-  async function exportRegistrationsCsv() {
-    setErr("");
-    setInfo("");
+  async function handleExport() {
+    setBusy(true);
+    setMessage("");
 
     try {
       const res = await fetch("/api/registrations", { cache: "no-store" });
-      const data = await readJson(res);
+      const data = await res.json().catch(() => ({}));
+
       const rows = Array.isArray(data.rows) ? data.rows : [];
 
-      const headers = [
-        "Tijdstip",
-        "Werknemer",
-        "PairCode",
-        "Type",
-        "Scanlocatie",
-        "Locatie",
+      const csvRows = [
+        [
+          "Datum",
+          "Type",
+          "Werknemer",
+          "PairCode",
+          "Tag richting",
+          "Tag secret",
+        ]
+          .map(toCsvValue)
+          .join(","),
+        ...rows.map((row) =>
+          [
+            formatDateTime(row.scannedAt),
+            row.type || "",
+            row.employee?.name || "",
+            row.employee?.pairCode || "",
+            row.scanTag?.direction || "",
+            row.scanTag?.secret || "",
+          ]
+            .map(toCsvValue)
+            .join(",")
+        ),
       ];
 
-      const csvRows = rows.map((row) => [
-        row.scannedAt || "",
-        row.employee?.name || "",
-        row.employee?.pairCode || "",
-        row.type || "",
-        row.scanTag?.scanLocation?.name || "",
-        row.scanTag?.scanLocation?.location || "",
-      ]);
-
-      const csv = [headers, ...csvRows]
-        .map((line) => line.map(escapeCsv).join(","))
-        .join("\n");
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "punctoo-registrations.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setInfo("CSV export gedownload.");
-    } catch (e) {
-      setErr(e?.message || "Export mislukt.");
+      downloadTextFile("registraties.csv", csvRows.join("\n"));
+      setMessage("Export succesvol gedownload.");
+    } catch (error) {
+      console.error("Export error:", error);
+      setMessage("Export mislukt.");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <Box>
-      <Card>
-        <CardContent>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h4" fontWeight={800}>
-                Export
-              </Typography>
-              <Typography color="text.secondary">
-                Exporteer gegevens uit je Punctoo-omgeving
-              </Typography>
-            </Box>
+    <div style={{ padding: 24 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>Export</h1>
+      <p style={{ marginBottom: 16 }}>
+        Exporteer alle registraties naar CSV.
+      </p>
 
-            {err ? <Alert severity="error">{err}</Alert> : null}
-            {info ? <Alert severity="success">{info}</Alert> : null}
+      <button
+        onClick={handleExport}
+        disabled={busy}
+        style={{
+          padding: "10px 16px",
+          borderRadius: 10,
+          border: "1px solid #d1d5db",
+          background: busy ? "#f3f4f6" : "#111827",
+          color: busy ? "#6b7280" : "#fff",
+          cursor: busy ? "not-allowed" : "pointer",
+        }}
+      >
+        {busy ? "Bezig met export..." : "Download CSV"}
+      </button>
 
-            <Card variant="outlined">
-              <CardContent>
-                <Stack spacing={2}>
-                  <Typography variant="h6" fontWeight={700}>
-                    Registraties exporteren
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Download alle scanregistraties als CSV-bestand.
-                  </Typography>
-                  <Box>
-                    <Button
-                      variant="contained"
-                      startIcon={<DownloadIcon />}
-                      onClick={exportRegistrationsCsv}
-                    >
-                      Download CSV
-                    </Button>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Stack>
-        </CardContent>
-      </Card>
-    </Box>
+      {message ? <p style={{ marginTop: 16 }}>{message}</p> : null}
+    </div>
   );
 }

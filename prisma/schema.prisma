@@ -7,9 +7,9 @@ datasource db {
 }
 
 model Company {
-  id                    String        @id @default(cuid())
+  id                    String             @id @default(cuid())
   name                  String
-  slug                  String        @unique
+  slug                  String             @unique
   vatNumber             String?
   phone                 String?
 
@@ -26,7 +26,7 @@ model Company {
   shippingCountry       String?
 
   contactEmail          String?
-  subscriptionNumber    String?       @unique
+  subscriptionNumber    String?            @unique
   subscriptionStatus    SubscriptionStatus @default(TRIAL)
   trialStartsAt         DateTime?
   trialEndsAt           DateTime?
@@ -34,12 +34,12 @@ model Company {
   nextRenewalAt         DateTime?
   deactivatedAt         DateTime?
 
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   users                 User[]
   employees             Employee[]
-  scanLocations         ScanLocation[]
+  scanTags              ScanTag[]
   scanEvents            ScanEvent[]
 
   @@index([name])
@@ -114,32 +114,18 @@ model EmployeeCalendarDay {
   @@index([employeeId])
 }
 
-model ScanLocation {
-  id          String        @id @default(cuid())
-  companyId   String
-  name        String
-  location    String?
-  createdAt   DateTime      @default(now())
-
-  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  scanTags    ScanTag[]
-
-  @@unique([companyId, name])
-  @@index([companyId])
-}
-
 model ScanTag {
-  id             String        @id @default(cuid())
-  secret         String        @unique
-  createdAt      DateTime      @default(now())
-  direction      ScanDirection
-  scanLocationId String
+  id         String        @id @default(cuid())
+  companyId  String
+  secret     String        @unique
+  createdAt  DateTime      @default(now())
+  direction  ScanDirection
 
-  scanLocation   ScanLocation  @relation(fields: [scanLocationId], references: [id], onDelete: Cascade)
-  scanEvents     ScanEvent[]
+  company    Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scanEvents ScanEvent[]
 
-  @@unique([scanLocationId, direction])
-  @@index([scanLocationId])
+  @@unique([companyId, direction])
+  @@index([companyId])
 }
 
 model ScanEvent {

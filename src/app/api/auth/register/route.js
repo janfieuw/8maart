@@ -5,6 +5,7 @@ import {
   createAndSetSession,
   hashPassword,
 } from "@/lib/auth";
+import crypto from "crypto";
 
 function jsonOk(data = {}, status = 200) {
   return NextResponse.json({ ok: true, ...data }, { status });
@@ -46,6 +47,10 @@ async function generateUniqueSubscriptionNumber(tx) {
   }
 
   throw new Error("Kon geen uniek abonnementsnummer genereren");
+}
+
+function generateSecret() {
+  return crypto.randomBytes(24).toString("hex");
 }
 
 export async function POST(req) {
@@ -170,6 +175,21 @@ export async function POST(req) {
           passwordHash,
           name: contactName,
         },
+      });
+
+      await tx.scanTag.createMany({
+        data: [
+          {
+            companyId: company.id,
+            direction: "IN",
+            secret: generateSecret(),
+          },
+          {
+            companyId: company.id,
+            direction: "OUT",
+            secret: generateSecret(),
+          },
+        ],
       });
 
       return { company, user };

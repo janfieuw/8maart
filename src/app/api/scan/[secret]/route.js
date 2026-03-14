@@ -32,22 +32,19 @@ export async function POST(request, context) {
     const pairCode = normalizePairCode(body?.pairCode);
     const deviceToken = String(body?.deviceToken || "").trim();
 
-    const tag = await prisma.scanTag.findFirst({
+    const tag = await prisma.scanTag.findUnique({
       where: { secret },
-      include: {
-        scanLocation: true,
-      },
     });
 
     if (!tag) {
       return jsonError("Tag niet gevonden", 404);
     }
 
-    if (!tag.scanLocation?.companyId) {
-      return jsonError("Scanlocatie is ongeldig", 500);
+    if (!tag.companyId) {
+      return jsonError("Tag is ongeldig", 500);
     }
 
-    const companyId = tag.scanLocation.companyId;
+    const companyId = tag.companyId;
 
     let employee = null;
 
@@ -98,11 +95,6 @@ export async function POST(request, context) {
         id: employee.id,
         name: employee.name,
         pairCode: employee.pairCode,
-      },
-      scanLocation: {
-        id: tag.scanLocation.id,
-        name: tag.scanLocation.name,
-        location: tag.scanLocation.location,
       },
       scanEvent,
     });

@@ -1,182 +1,104 @@
-import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
-import crypto from "crypto";
+const { PrismaClient } = require("@prisma/client");
 
-const connectionString = process.env.DATABASE_URL;
+const prisma = new PrismaClient();
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL ontbreekt in je environment.");
-}
-
-const pool = new Pool({
-  connectionString,
-});
-
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-function randomSecret() {
-  return crypto.randomBytes(24).toString("hex");
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
 async function main() {
-  console.log("Seeding Punctoo...");
+  const now = new Date();
 
   const company = await prisma.company.upsert({
     where: { slug: "demo-bedrijf" },
-    update: {
-      name: "Demo Bedrijf",
-      vatNumber: "BE0123456789",
-      phone: "+32 470 00 00 00",
-      billingStreet: "Stationsstraat",
-      billingHouseNumber: "12",
-      billingPostalCode: "9000",
-      billingCity: "Gent",
-      billingCountry: "België",
-      shippingStreet: "Magazijnweg",
-      shippingHouseNumber: "5",
-      shippingPostalCode: "9000",
-      shippingCity: "Gent",
-      shippingCountry: "België",
-    },
+    update: {},
     create: {
       name: "Demo Bedrijf",
       slug: "demo-bedrijf",
-      vatNumber: "BE0123456789",
-      phone: "+32 470 00 00 00",
-      billingStreet: "Stationsstraat",
-      billingHouseNumber: "12",
-      billingPostalCode: "9000",
-      billingCity: "Gent",
-      billingCountry: "België",
-      shippingStreet: "Magazijnweg",
-      shippingHouseNumber: "5",
-      shippingPostalCode: "9000",
-      shippingCity: "Gent",
-      shippingCountry: "België",
-    },
-  });
-
-  const user = await prisma.user.upsert({
-    where: { email: "demo@punctoo.local" },
-    update: {
-      companyId: company.id,
-      name: "Demo Admin",
-      passwordHash: "demo-not-secure-change-me",
-    },
-    create: {
-      companyId: company.id,
-      email: "demo@punctoo.local",
-      name: "Demo Admin",
-      passwordHash: "demo-not-secure-change-me",
+      contactEmail: "demo@bedrijf.be",
+      subscriptionNumber: "SUB-DEMO-000001",
+      subscriptionStatus: "TRIAL",
+      trialStartsAt: now,
+      trialEndsAt: addDays(now, 15),
     },
   });
 
   const employee = await prisma.employee.upsert({
-    where: { pairCode: "ABC123" },
+    where: { pairCode: "DEMO01" },
     update: {
       companyId: company.id,
       name: "Demo Werknemer",
       active: true,
-      expectedMode: "ROSTER",
     },
     create: {
       companyId: company.id,
       name: "Demo Werknemer",
-      pairCode: "ABC123",
+      pairCode: "DEMO01",
       active: true,
-      expectedMode: "ROSTER",
     },
   });
 
-  const rosterDays = [
-    { weekday: 1, expectedMinutes: 480 },
-    { weekday: 2, expectedMinutes: 480 },
-    { weekday: 3, expectedMinutes: 480 },
-    { weekday: 4, expectedMinutes: 480 },
-    { weekday: 5, expectedMinutes: 480 },
-    { weekday: 6, expectedMinutes: 0 },
-    { weekday: 7, expectedMinutes: 0 },
-  ];
-
-  for (const day of rosterDays) {
-    await prisma.employeeRosterDay.upsert({
-      where: {
-        employeeId_weekday: {
-          employeeId: employee.id,
-          weekday: day.weekday,
-        },
-      },
-      update: {
-        expectedMinutes: day.expectedMinutes,
-      },
-      create: {
-        employeeId: employee.id,
-        weekday: day.weekday,
-        expectedMinutes: day.expectedMinutes,
-      },
-    });
-  }
-
-  const scanLocation = await prisma.scanLocation.upsert({
+  const inTag = await prisma.scanTag.upsert({
     where: {
-      companyId_name: {
+      companyId_direction: {
         companyId: company.id,
-        name: "Werkplaats",
+        direction: "IN",
       },
     },
-    update: {
-      location: "Poort 3",
-    },
+    update: {},
     create: {
       companyId: company.id,
-      name: "Werkplaats",
-      location: "Poort 3",
+      direction: "IN",
+      secret: "demo-in-secret",
     },
   });
 
-  const existingTags = await prisma.scanTag.findMany({
-    where: { scanLocationId: scanLocation.id },
+  const outTag = await prisma.scanTag.upsert({
+    where: {
+      companyId_direction: {
+        companyId: company.id,
+        direction: "OUT",
+      },
+    },
+    update: {},
+    create: {
+      companyId: company.id,
+      direction: "OUT",
+      secret: "demo-out-secret",
+    },
   });
 
-  const inTag = existingTags.find((tag) => tag.direction === "IN");
-  const outTag = existingTags.find((tag) => tag.direction === "OUT");
-
-  if (!inTag) {
-    await prisma.scanTag.create({
-      data: {
-        scanLocationId: scanLocation.id,
-        direction: "IN",
-        secret: "DEMO-IN",
+  await prisma.scanEvent.createMany({
+    data: [
+      {
+        companyId: company.id,
+        employeeId: employee.id,
+        scanTagId: inTag.id,
+        type: "IN",
+        scannedAt: new Date(),
       },
-    });
-  }
-
-  if (!outTag) {
-    await prisma.scanTag.create({
-      data: {
-        scanLocationId: scanLocation.id,
-        direction: "OUT",
-        secret: "DEMO-OUT",
+      {
+        companyId: company.id,
+        employeeId: employee.id,
+        scanTagId: outTag.id,
+        type: "OUT",
+        scannedAt: new Date(),
       },
-    });
-  }
+    ],
+    skipDuplicates: true,
+  });
 
-  console.log("Seed klaar.");
-  console.log("Company:", company.name, `(${company.slug})`);
-  console.log("User:", user.email);
-  console.log("Employee:", `${employee.name} / ${employee.pairCode}`);
-  console.log("Demo scan secrets: DEMO-IN / DEMO-OUT");
+  console.log("Seed voltooid");
 }
 
 main()
-  .catch((e) => {
-    console.error("Seed fout:", e);
-    process.exit(1);
-  })
-  .finally(async () => {
+  .then(async () => {
     await prisma.$disconnect();
-    await pool.end();
+  })
+  .catch(async (error) => {
+    console.error(error);
+    await prisma.$disconnect();
+    process.exit(1);
   });

@@ -32,17 +32,7 @@ export async function GET() {
             pairCode: true,
           },
         },
-        scanTag: {
-          include: {
-            scanLocation: {
-              select: {
-                id: true,
-                name: true,
-                location: true,
-              },
-            },
-          },
-        },
+        scanTag: true,
       },
     });
 
