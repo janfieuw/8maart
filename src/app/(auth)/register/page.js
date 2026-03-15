@@ -33,11 +33,26 @@ async function readJson(res) {
   return data;
 }
 
-const hiddenAsteriskSx = {
-  "& .MuiFormLabel-asterisk": {
-    display: "none",
-  },
+const subtleLabelSx = {
+  fontSize: "0.85rem",
+  mb: 0.6,
+  color: "#374151",
+  fontWeight: 500,
 };
+
+const inputSx = {
+  backgroundColor: "#ffffff",
+  borderRadius: 2,
+};
+
+function Field({ label, children }) {
+  return (
+    <Box>
+      <Typography sx={subtleLabelSx}>{label}</Typography>
+      {children}
+    </Box>
+  );
+}
 
 export default function RegisterPage() {
   const [companyName, setCompanyName] = useState("");
@@ -102,7 +117,7 @@ export default function RegisterPage() {
         })
       );
 
-      window.location.href = "/app/dashboard";
+      window.location.href = "/app";
     } catch (e) {
       setErr(e?.message || "Account aanmaken mislukt.");
     } finally {
@@ -138,65 +153,77 @@ export default function RegisterPage() {
             Account
           </Typography>
 
-          <TextField
-            label="Bedrijfsnaam"
-            value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
-            required
-            fullWidth
-            InputLabelProps={{ sx: hiddenAsteriskSx }}
-          />
+          <Field label="Bedrijfsnaam">
+            <TextField
+              fullWidth
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              required
+              autoFocus
+              autoComplete="organization"
+              InputProps={{ sx: inputSx }}
+            />
+          </Field>
 
-          <TextField
-            label="Contactnaam"
-            value={contactName}
-            onChange={(e) => setContactName(e.target.value)}
-            required
-            fullWidth
-            InputLabelProps={{ sx: hiddenAsteriskSx }}
-          />
+          <Field label="Contactnaam">
+            <TextField
+              fullWidth
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              required
+              autoComplete="name"
+              InputProps={{ sx: inputSx }}
+            />
+          </Field>
 
-          <TextField
-            label="E-mailadres"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            fullWidth
-            InputLabelProps={{ sx: hiddenAsteriskSx }}
-          />
+          <Field label="E-mailadres">
+            <TextField
+              fullWidth
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              InputProps={{ sx: inputSx }}
+            />
+          </Field>
 
-          <TextField
-            label="Wachtwoord"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            fullWidth
-            helperText="Minstens 6 tekens."
-            InputLabelProps={{ sx: hiddenAsteriskSx }}
-          />
+          <Field label="Wachtwoord">
+            <TextField
+              fullWidth
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+              InputProps={{ sx: inputSx }}
+              helperText="Minstens 6 tekens."
+            />
+          </Field>
 
           <Typography variant="h6" fontWeight={800} sx={{ pt: 1 }}>
             Bedrijfsgegevens
           </Typography>
 
-          <TextField
-            label="BTW-nummer"
-            value={vatNumber}
-            onChange={(e) => setVatNumber(e.target.value)}
-            required
-            fullWidth
-            InputLabelProps={{ sx: hiddenAsteriskSx }}
-          />
+          <Field label="BTW-nummer">
+            <TextField
+              fullWidth
+              value={vatNumber}
+              onChange={(e) => setVatNumber(e.target.value)}
+              required
+              InputProps={{ sx: inputSx }}
+            />
+          </Field>
 
-          <TextField
-            label="Telefoon"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            fullWidth
-            InputLabelProps={{ sx: hiddenAsteriskSx }}
-          />
+          <Field label="Telefoon">
+            <TextField
+              fullWidth
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              autoComplete="tel"
+              InputProps={{ sx: inputSx }}
+            />
+          </Field>
 
           <Typography variant="h6" fontWeight={800} sx={{ pt: 1 }}>
             Facturatieadres
@@ -204,57 +231,66 @@ export default function RegisterPage() {
 
           <Grid container spacing={2}>
             <Grid item xs={12} md={8}>
-              <TextField
-                label="Straat"
-                value={billingStreet}
-                onChange={(e) => setBillingStreet(e.target.value)}
-                required
-                fullWidth
-                InputLabelProps={{ sx: hiddenAsteriskSx }}
-              />
+              <Field label="Straat">
+                <TextField
+                  fullWidth
+                  value={billingStreet}
+                  onChange={(e) => setBillingStreet(e.target.value)}
+                  required
+                  autoComplete="address-line1"
+                  InputProps={{ sx: inputSx }}
+                />
+              </Field>
             </Grid>
 
             <Grid item xs={12} md={4}>
-              <TextField
-                label="Huisnummer"
-                value={billingHouseNumber}
-                onChange={(e) => setBillingHouseNumber(e.target.value)}
-                required
-                fullWidth
-                InputLabelProps={{ sx: hiddenAsteriskSx }}
-              />
+              <Field label="Huisnummer">
+                <TextField
+                  fullWidth
+                  value={billingHouseNumber}
+                  onChange={(e) => setBillingHouseNumber(e.target.value)}
+                  required
+                  InputProps={{ sx: inputSx }}
+                />
+              </Field>
             </Grid>
 
             <Grid item xs={12} md={4}>
-              <TextField
-                label="Postcode"
-                value={billingPostalCode}
-                onChange={(e) => setBillingPostalCode(e.target.value)}
-                required
-                fullWidth
-                InputLabelProps={{ sx: hiddenAsteriskSx }}
-              />
+              <Field label="Postcode">
+                <TextField
+                  fullWidth
+                  value={billingPostalCode}
+                  onChange={(e) => setBillingPostalCode(e.target.value)}
+                  required
+                  autoComplete="postal-code"
+                  InputProps={{ sx: inputSx }}
+                />
+              </Field>
             </Grid>
 
             <Grid item xs={12} md={8}>
-              <TextField
-                label="Gemeente"
-                value={billingCity}
-                onChange={(e) => setBillingCity(e.target.value)}
-                required
-                fullWidth
-                InputLabelProps={{ sx: hiddenAsteriskSx }}
-              />
+              <Field label="Gemeente">
+                <TextField
+                  fullWidth
+                  value={billingCity}
+                  onChange={(e) => setBillingCity(e.target.value)}
+                  required
+                  autoComplete="address-level2"
+                  InputProps={{ sx: inputSx }}
+                />
+              </Field>
             </Grid>
 
             <Grid item xs={12}>
-              <TextField
-                label="Land"
-                value={billingCountry}
-                onChange={(e) => setBillingCountry(e.target.value)}
-                fullWidth
-                InputLabelProps={{ sx: hiddenAsteriskSx }}
-              />
+              <Field label="Land">
+                <TextField
+                  fullWidth
+                  value={billingCountry}
+                  onChange={(e) => setBillingCountry(e.target.value)}
+                  autoComplete="country-name"
+                  InputProps={{ sx: inputSx }}
+                />
+              </Field>
             </Grid>
           </Grid>
 
@@ -275,53 +311,58 @@ export default function RegisterPage() {
           {!shippingSameAsBilling ? (
             <Grid container spacing={2}>
               <Grid item xs={12} md={8}>
-                <TextField
-                  label="Straat"
-                  value={shippingStreet}
-                  onChange={(e) => setShippingStreet(e.target.value)}
-                  fullWidth
-                  InputLabelProps={{ sx: hiddenAsteriskSx }}
-                />
+                <Field label="Straat">
+                  <TextField
+                    fullWidth
+                    value={shippingStreet}
+                    onChange={(e) => setShippingStreet(e.target.value)}
+                    InputProps={{ sx: inputSx }}
+                  />
+                </Field>
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <TextField
-                  label="Huisnummer"
-                  value={shippingHouseNumber}
-                  onChange={(e) => setShippingHouseNumber(e.target.value)}
-                  fullWidth
-                  InputLabelProps={{ sx: hiddenAsteriskSx }}
-                />
+                <Field label="Huisnummer">
+                  <TextField
+                    fullWidth
+                    value={shippingHouseNumber}
+                    onChange={(e) => setShippingHouseNumber(e.target.value)}
+                    InputProps={{ sx: inputSx }}
+                  />
+                </Field>
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <TextField
-                  label="Postcode"
-                  value={shippingPostalCode}
-                  onChange={(e) => setShippingPostalCode(e.target.value)}
-                  fullWidth
-                  InputLabelProps={{ sx: hiddenAsteriskSx }}
-                />
+                <Field label="Postcode">
+                  <TextField
+                    fullWidth
+                    value={shippingPostalCode}
+                    onChange={(e) => setShippingPostalCode(e.target.value)}
+                    InputProps={{ sx: inputSx }}
+                  />
+                </Field>
               </Grid>
 
               <Grid item xs={12} md={8}>
-                <TextField
-                  label="Gemeente"
-                  value={shippingCity}
-                  onChange={(e) => setShippingCity(e.target.value)}
-                  fullWidth
-                  InputLabelProps={{ sx: hiddenAsteriskSx }}
-                />
+                <Field label="Gemeente">
+                  <TextField
+                    fullWidth
+                    value={shippingCity}
+                    onChange={(e) => setShippingCity(e.target.value)}
+                    InputProps={{ sx: inputSx }}
+                  />
+                </Field>
               </Grid>
 
               <Grid item xs={12}>
-                <TextField
-                  label="Land"
-                  value={shippingCountry}
-                  onChange={(e) => setShippingCountry(e.target.value)}
-                  fullWidth
-                  InputLabelProps={{ sx: hiddenAsteriskSx }}
-                />
+                <Field label="Land">
+                  <TextField
+                    fullWidth
+                    value={shippingCountry}
+                    onChange={(e) => setShippingCountry(e.target.value)}
+                    InputProps={{ sx: inputSx }}
+                  />
+                </Field>
               </Grid>
             </Grid>
           ) : null}
@@ -332,26 +373,33 @@ export default function RegisterPage() {
             size="large"
             disabled={saving}
             sx={{
-              minHeight: 56,
+              minHeight: 52,
               borderRadius: 3,
               fontWeight: 700,
               fontSize: "1rem",
               mt: 1,
             }}
           >
-            {saving ? "Account aanmaken..." : "Account aanmaken"}
+            {saving ? "Account aanmaken..." : "ACCOUNT AANMAKEN"}
           </Button>
 
-          <Typography color="text.secondary">
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              color: "#374151",
+            }}
+          >
             Heb je al een account?{" "}
-            <Button
-              component={Link}
+            <Link
               href="/login"
-              variant="text"
-              sx={{ p: 0, minWidth: 0, verticalAlign: "baseline" }}
+              style={{
+                color: "#2e8b57",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
             >
-              Inloggen
-            </Button>
+              INLOGGEN
+            </Link>
           </Typography>
         </Stack>
       </Box>
