@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
@@ -60,7 +62,9 @@ function buildStatusLines(employees, latestScanByEmployee) {
       absent.push({
         id: employee.id,
         primary: employee.name,
-        secondary: latest ? `Laatste OUT: ${formatDate(latest.scannedAt)}` : "Nog geen scans",
+        secondary: latest
+          ? `Laatste OUT: ${formatDate(latest.scannedAt)}`
+          : "Nog geen scans",
       });
     } else {
       working.push({
@@ -196,8 +200,19 @@ function DashboardPanel({
 }
 
 export default async function DashboardPage() {
+  const session = await getSession();
+
+  if (!session?.companyId) {
+    redirect("/login");
+  }
+
+  const companyId = session.companyId;
+
   const employees = await prisma.employee.findMany({
-    where: { active: true },
+    where: {
+      companyId,
+      active: true,
+    },
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -206,6 +221,9 @@ export default async function DashboardPage() {
   });
 
   const scans = await prisma.scanEvent.findMany({
+    where: {
+      companyId,
+    },
     orderBy: { scannedAt: "desc" },
     select: {
       id: true,
@@ -215,9 +233,11 @@ export default async function DashboardPage() {
     },
   });
 
-  const employeesById = new Map(employees.map((employee) => [employee.id, employee]));
-  const latestScanByEmployee = groupLatestScanByEmployee(scans);
+  const employeesById = new Map(
+    employees.map((employee) => [employee.id, employee])
+  );
 
+  const latestScanByEmployee = groupLatestScanByEmployee(scans);
   const { working, absent } = buildStatusLines(employees, latestScanByEmployee);
   const latestIns = buildScanLines(scans, employeesById, "IN");
   const latestOuts = buildScanLines(scans, employeesById, "OUT");
