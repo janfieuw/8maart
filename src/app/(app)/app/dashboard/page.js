@@ -1,10 +1,16 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import {
+  buildEmployeeBalances,
+  formatBalanceMinutes,
+} from "@/lib/work-balance";
+
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+
 import {
   Box,
   Card,
@@ -199,6 +205,53 @@ function DashboardPanel({
   );
 }
 
+function WorkBalanceTile({ name, balanceMinutes }) {
+  const color =
+    balanceMinutes > 0
+      ? "#1f7a45"
+      : balanceMinutes < 0
+      ? "#a33a3a"
+      : "#6b7280";
+
+  return (
+    <Card
+      sx={{
+        height: "100%",
+        borderRadius: "24px",
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
+        backgroundColor: "#ffffff",
+      }}
+    >
+      <CardContent sx={{ p: 3 }}>
+        <Stack spacing={1}>
+          <Typography
+            sx={{
+              fontSize: "1rem",
+              fontWeight: 700,
+              color: "#111827",
+              lineHeight: 1.3,
+            }}
+          >
+            {name}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: "1.45rem",
+              fontWeight: 800,
+              color,
+              lineHeight: 1.2,
+            }}
+          >
+            {formatBalanceMinutes(balanceMinutes)}
+          </Typography>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function DashboardPage() {
   const session = await getSession();
 
@@ -217,6 +270,7 @@ export default async function DashboardPage() {
     select: {
       id: true,
       name: true,
+      dailyMinutes: true,
     },
   });
 
@@ -241,6 +295,12 @@ export default async function DashboardPage() {
   const { working, absent } = buildStatusLines(employees, latestScanByEmployee);
   const latestIns = buildScanLines(scans, employeesById, "IN");
   const latestOuts = buildScanLines(scans, employeesById, "OUT");
+
+  const balances = buildEmployeeBalances({
+    employees,
+    scans,
+    defaultDailyMinutes: 8 * 60,
+  });
 
   return (
     <Box sx={{ px: { xs: 1, md: 2 }, py: 1 }}>
@@ -325,6 +385,30 @@ export default async function DashboardPage() {
             />
           </Grid>
         </Grid>
+
+        <Box>
+          <Typography
+            sx={{
+              fontSize: "1.35rem",
+              fontWeight: 800,
+              color: "#111827",
+              mb: 2,
+            }}
+          >
+            Work balance
+          </Typography>
+
+          <Grid container spacing={3}>
+            {balances.map((employee) => (
+              <Grid key={employee.employeeId} item xs={12} sm={6} md={4} xl={3}>
+                <WorkBalanceTile
+                  name={employee.name}
+                  balanceMinutes={employee.balanceMinutes}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
       </Stack>
     </Box>
   );
