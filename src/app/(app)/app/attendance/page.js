@@ -86,11 +86,13 @@ export default async function AttendancePage({ searchParams }) {
     redirect("/login");
   }
 
-  const params = searchParams || {};
+  // BELANGRIJK: in jouw setup searchParams awaiten
+  const params = (await searchParams) || {};
+
   const today = new Date();
 
-  const fromParam = params.from || formatDateInput(today);
-  const toParam = params.to || formatDateInput(today);
+  const fromParam = String(params.from || formatDateInput(today));
+  const toParam = String(params.to || formatDateInput(today));
   const nameParam = String(params.name || "").trim();
 
   let rows = [];
@@ -168,7 +170,7 @@ export default async function AttendancePage({ searchParams }) {
                       label="Van"
                       name="from"
                       type="date"
-                      defaultValue={fromParam}
+                      value={fromParam}
                       InputLabelProps={{ shrink: true }}
                     />
 
@@ -176,7 +178,7 @@ export default async function AttendancePage({ searchParams }) {
                       label="Tot"
                       name="to"
                       type="date"
-                      defaultValue={toParam}
+                      value={toParam}
                       InputLabelProps={{ shrink: true }}
                     />
 
@@ -184,7 +186,7 @@ export default async function AttendancePage({ searchParams }) {
                       label="Naam"
                       name="name"
                       placeholder="Zoek werknemer"
-                      defaultValue={nameParam}
+                      value={nameParam}
                     />
 
                     <Button
