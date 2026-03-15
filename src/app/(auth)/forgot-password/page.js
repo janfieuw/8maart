@@ -11,7 +11,39 @@ import {
   Typography,
 } from "@mui/material";
 
+function readJsonSafe(text) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readJson(res) {
+  const text = await res.text();
+  const data = readJsonSafe(text);
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
+
+const inputSx = {
+  backgroundColor: "#ffffff",
+  borderRadius: 2,
+};
+
+const subtleLabelSx = {
+  fontSize: "0.85rem",
+  mb: 0.6,
+  color: "#374151",
+  fontWeight: 500,
+};
+
 export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [saving, setSaving] = useState(false);
@@ -22,9 +54,6 @@ export default function ForgotPasswordPage() {
     setInfo("");
     setSaving(true);
 
-    const formData = new FormData(e.currentTarget);
-    const email = String(formData.get("email") || "").trim();
-
     try {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
@@ -32,20 +61,16 @@ export default function ForgotPasswordPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
+          email: String(email || "").trim(),
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "Verzenden mislukt.");
-      }
+      await readJson(res);
 
       setInfo(
         "Als dit e-mailadres gekend is, ontvang je binnenkort instructies om je wachtwoord opnieuw in te stellen."
       );
-      e.currentTarget.reset();
+      setEmail("");
     } catch (e) {
       setErr(e?.message || "Verzenden mislukt.");
     } finally {
@@ -69,7 +94,8 @@ export default function ForgotPasswordPage() {
         </Typography>
 
         <Typography color="text.secondary">
-          Vul je e-mailadres in en we sturen je instructies om je wachtwoord opnieuw in te stellen.
+          Vul je e-mailadres in en we sturen je instructies om je wachtwoord
+          opnieuw in te stellen.
         </Typography>
       </Box>
 
@@ -77,21 +103,23 @@ export default function ForgotPasswordPage() {
       {info ? <Alert severity="success">{info}</Alert> : null}
 
       <Box component="form" onSubmit={handleSubmit}>
-        <Stack spacing={3}>
-          <TextField
-            name="email"
-            label="E-mailadres"
-            type="email"
-            required
-            fullWidth
-            InputLabelProps={{
-              sx: {
-                "& .MuiFormLabel-asterisk": {
-                  display: "none",
-                },
-              },
-            }}
-          />
+        <Stack spacing={2.5}>
+          <Box>
+            <Typography sx={subtleLabelSx}>E-mailadres</Typography>
+            <TextField
+              fullWidth
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoFocus
+              autoComplete="email"
+              placeholder="naam@bedrijf.be"
+              InputProps={{
+                sx: inputSx,
+              }}
+            />
+          </Box>
 
           <Button
             type="submit"
@@ -99,25 +127,32 @@ export default function ForgotPasswordPage() {
             size="large"
             disabled={saving}
             sx={{
-              minHeight: 56,
+              minHeight: 52,
               borderRadius: 3,
               fontWeight: 700,
               fontSize: "1rem",
             }}
           >
-            {saving ? "Verzenden..." : "Verstuur instructies"}
+            {saving ? "Verzenden..." : "VERSTUUR INSTRUCTIES"}
           </Button>
 
-          <Typography color="text.secondary">
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              color: "#374151",
+            }}
+          >
             Terug naar{" "}
-            <Button
-              component={Link}
+            <Link
               href="/login"
-              variant="text"
-              sx={{ p: 0, minWidth: 0, verticalAlign: "baseline" }}
+              style={{
+                color: "#2e8b57",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
             >
-              inloggen
-            </Button>
+              INLOGGEN
+            </Link>
           </Typography>
         </Stack>
       </Box>
