@@ -33,6 +33,19 @@ async function readJson(res) {
   return data;
 }
 
+function formatVatNumber(value) {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+
+  let formatted = "";
+
+  if (digits.length > 0) formatted += digits.slice(0, 1);
+  if (digits.length > 1) formatted += "." + digits.slice(1, 4);
+  if (digits.length > 4) formatted += "." + digits.slice(4, 7);
+  if (digits.length > 7) formatted += "." + digits.slice(7, 10);
+
+  return formatted;
+}
+
 const subtleLabelSx = {
   fontSize: "0.85rem",
   mb: 0.6,
@@ -86,25 +99,25 @@ export default function RegisterPage() {
 
     try {
       const payload = {
-        companyName: String(companyName || "").trim(),
-        contactName: String(contactName || "").trim(),
-        email: String(email || "").trim(),
-        password: String(password || ""),
-        vatNumber: String(vatNumber || "").trim(),
-        phone: String(phone || "").trim(),
+        companyName: companyName.trim(),
+        contactName: contactName.trim(),
+        email: email.trim(),
+        password,
+        vatNumber,
+        phone,
 
-        billingStreet: String(billingStreet || "").trim(),
-        billingHouseNumber: String(billingHouseNumber || "").trim(),
-        billingPostalCode: String(billingPostalCode || "").trim(),
-        billingCity: String(billingCity || "").trim(),
-        billingCountry: String(billingCountry || "").trim(),
+        billingStreet,
+        billingHouseNumber,
+        billingPostalCode,
+        billingCity,
+        billingCountry,
 
         shippingSameAsBilling,
-        shippingStreet: String(shippingStreet || "").trim(),
-        shippingHouseNumber: String(shippingHouseNumber || "").trim(),
-        shippingPostalCode: String(shippingPostalCode || "").trim(),
-        shippingCity: String(shippingCity || "").trim(),
-        shippingCountry: String(shippingCountry || "").trim(),
+        shippingStreet,
+        shippingHouseNumber,
+        shippingPostalCode,
+        shippingCity,
+        shippingCountry,
       };
 
       await readJson(
@@ -119,7 +132,7 @@ export default function RegisterPage() {
 
       window.location.href = "/app";
     } catch (e) {
-      setErr(e?.message || "Account aanmaken mislukt.");
+      setErr(e.message || "Account aanmaken mislukt.");
     } finally {
       setSaving(false);
     }
@@ -145,7 +158,7 @@ export default function RegisterPage() {
         </Typography>
       </Box>
 
-      {err ? <Alert severity="error">{err}</Alert> : null}
+      {err && <Alert severity="error">{err}</Alert>}
 
       <Box component="form" onSubmit={handleSubmit}>
         <Stack spacing={3}>
@@ -160,7 +173,6 @@ export default function RegisterPage() {
               onChange={(e) => setCompanyName(e.target.value)}
               required
               autoFocus
-              autoComplete="organization"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -171,7 +183,6 @@ export default function RegisterPage() {
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
               required
-              autoComplete="name"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -183,7 +194,6 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -195,9 +205,8 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete="new-password"
-              InputProps={{ sx: inputSx }}
               helperText="Minstens 6 tekens."
+              InputProps={{ sx: inputSx }}
             />
           </Field>
 
@@ -205,12 +214,16 @@ export default function RegisterPage() {
             Bedrijfsgegevens
           </Typography>
 
-          <Field label="BTW-nummer">
+          <Field label="BTW-nummer (formaat 0.xxx.xxx.xxx)">
             <TextField
               fullWidth
               value={vatNumber}
-              onChange={(e) => setVatNumber(e.target.value)}
+              onChange={(e) =>
+                setVatNumber(formatVatNumber(e.target.value))
+              }
               required
+              placeholder="0.123.456.789"
+              inputMode="numeric"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -220,7 +233,6 @@ export default function RegisterPage() {
               fullWidth
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              autoComplete="tel"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -237,7 +249,6 @@ export default function RegisterPage() {
                   value={billingStreet}
                   onChange={(e) => setBillingStreet(e.target.value)}
                   required
-                  autoComplete="address-line1"
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
@@ -248,7 +259,9 @@ export default function RegisterPage() {
                 <TextField
                   fullWidth
                   value={billingHouseNumber}
-                  onChange={(e) => setBillingHouseNumber(e.target.value)}
+                  onChange={(e) =>
+                    setBillingHouseNumber(e.target.value)
+                  }
                   required
                   InputProps={{ sx: inputSx }}
                 />
@@ -260,9 +273,10 @@ export default function RegisterPage() {
                 <TextField
                   fullWidth
                   value={billingPostalCode}
-                  onChange={(e) => setBillingPostalCode(e.target.value)}
+                  onChange={(e) =>
+                    setBillingPostalCode(e.target.value)
+                  }
                   required
-                  autoComplete="postal-code"
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
@@ -275,7 +289,6 @@ export default function RegisterPage() {
                   value={billingCity}
                   onChange={(e) => setBillingCity(e.target.value)}
                   required
-                  autoComplete="address-level2"
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
@@ -287,7 +300,6 @@ export default function RegisterPage() {
                   fullWidth
                   value={billingCountry}
                   onChange={(e) => setBillingCountry(e.target.value)}
-                  autoComplete="country-name"
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
@@ -302,70 +314,13 @@ export default function RegisterPage() {
             control={
               <Checkbox
                 checked={shippingSameAsBilling}
-                onChange={(e) => setShippingSameAsBilling(e.target.checked)}
+                onChange={(e) =>
+                  setShippingSameAsBilling(e.target.checked)
+                }
               />
             }
             label="Leveringsadres is hetzelfde als facturatieadres"
           />
-
-          {!shippingSameAsBilling ? (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={8}>
-                <Field label="Straat">
-                  <TextField
-                    fullWidth
-                    value={shippingStreet}
-                    onChange={(e) => setShippingStreet(e.target.value)}
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Field label="Huisnummer">
-                  <TextField
-                    fullWidth
-                    value={shippingHouseNumber}
-                    onChange={(e) => setShippingHouseNumber(e.target.value)}
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Field label="Postcode">
-                  <TextField
-                    fullWidth
-                    value={shippingPostalCode}
-                    onChange={(e) => setShippingPostalCode(e.target.value)}
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
-
-              <Grid item xs={12} md={8}>
-                <Field label="Gemeente">
-                  <TextField
-                    fullWidth
-                    value={shippingCity}
-                    onChange={(e) => setShippingCity(e.target.value)}
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Field label="Land">
-                  <TextField
-                    fullWidth
-                    value={shippingCountry}
-                    onChange={(e) => setShippingCountry(e.target.value)}
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
-            </Grid>
-          ) : null}
 
           <Button
             type="submit"
@@ -383,12 +338,7 @@ export default function RegisterPage() {
             {saving ? "Account aanmaken..." : "ACCOUNT AANMAKEN"}
           </Button>
 
-          <Typography
-            sx={{
-              fontSize: "0.95rem",
-              color: "#374151",
-            }}
-          >
+          <Typography sx={{ fontSize: "0.95rem", color: "#374151" }}>
             Heb je al een account?{" "}
             <Link
               href="/login"
