@@ -66,7 +66,7 @@ export default function LoginPage() {
       });
 
       await readJson(res);
-      window.location.href = "/app";
+      window.location.href = "/app/dashboard";
     } catch (e) {
       setErr(e?.message || "Inloggen mislukt.");
     } finally {
