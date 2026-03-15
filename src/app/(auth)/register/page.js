@@ -127,9 +127,7 @@ export default function RegisterPage() {
       await readJson(
         await fetch("/api/auth/register", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         })
       );
@@ -168,7 +166,7 @@ export default function RegisterPage() {
         </Typography>
       </Box>
 
-      {err ? <Alert severity="error">{err}</Alert> : null}
+      {err && <Alert severity="error">{err}</Alert>}
 
       <Box component="form" onSubmit={handleSubmit}>
         <Stack spacing={3}>
@@ -250,7 +248,7 @@ export default function RegisterPage() {
           </Typography>
 
           <Grid container spacing={2}>
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12}>
               <Field label="Straat">
                 <TextField
                   fullWidth
@@ -264,7 +262,7 @@ export default function RegisterPage() {
               </Field>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12}>
               <Field label="Huisnummer">
                 <TextField
                   fullWidth
@@ -278,7 +276,7 @@ export default function RegisterPage() {
               </Field>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12}>
               <Field label="Postcode">
                 <TextField
                   fullWidth
@@ -292,7 +290,7 @@ export default function RegisterPage() {
               </Field>
             </Grid>
 
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12}>
               <Field label="Gemeente">
                 <TextField
                   fullWidth
@@ -338,7 +336,7 @@ export default function RegisterPage() {
 
           {!shippingSameAsBilling && (
             <Grid container spacing={2}>
-              <Grid item xs={12} md={8}>
+              <Grid item xs={12}>
                 <Field label="Straat">
                   <TextField
                     fullWidth
@@ -351,7 +349,7 @@ export default function RegisterPage() {
                 </Field>
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12}>
                 <Field label="Huisnummer">
                   <TextField
                     fullWidth
@@ -364,7 +362,7 @@ export default function RegisterPage() {
                 </Field>
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12}>
                 <Field label="Postcode">
                   <TextField
                     fullWidth
@@ -377,7 +375,7 @@ export default function RegisterPage() {
                 </Field>
               </Grid>
 
-              <Grid item xs={12} md={8}>
+              <Grid item xs={12}>
                 <Field label="Gemeente">
                   <TextField
                     fullWidth
