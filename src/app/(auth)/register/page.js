@@ -33,6 +33,10 @@ async function readJson(res) {
   return data;
 }
 
+function toUpper(value) {
+  return String(value || "").toUpperCase();
+}
+
 function formatVatNumber(value) {
   const digits = value.replace(/\D/g, "").slice(0, 10);
 
@@ -80,14 +84,14 @@ export default function RegisterPage() {
   const [billingHouseNumber, setBillingHouseNumber] = useState("");
   const [billingPostalCode, setBillingPostalCode] = useState("");
   const [billingCity, setBillingCity] = useState("");
-  const [billingCountry, setBillingCountry] = useState("België");
+  const [billingCountry, setBillingCountry] = useState("BELGIË");
 
   const [shippingSameAsBilling, setShippingSameAsBilling] = useState(true);
   const [shippingStreet, setShippingStreet] = useState("");
   const [shippingHouseNumber, setShippingHouseNumber] = useState("");
   const [shippingPostalCode, setShippingPostalCode] = useState("");
   const [shippingCity, setShippingCity] = useState("");
-  const [shippingCountry, setShippingCountry] = useState("België");
+  const [shippingCountry, setShippingCountry] = useState("BELGIË");
 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -99,25 +103,25 @@ export default function RegisterPage() {
 
     try {
       const payload = {
-        companyName: String(companyName || "").trim(),
-        contactName: String(contactName || "").trim(),
-        email: String(email || "").trim(),
-        password: String(password || ""),
-        vatNumber: String(vatNumber || "").trim(),
-        phone: String(phone || "").trim(),
+        companyName,
+        contactName,
+        email,
+        password,
+        vatNumber,
+        phone,
 
-        billingStreet: String(billingStreet || "").trim(),
-        billingHouseNumber: String(billingHouseNumber || "").trim(),
-        billingPostalCode: String(billingPostalCode || "").trim(),
-        billingCity: String(billingCity || "").trim(),
-        billingCountry: String(billingCountry || "").trim(),
+        billingStreet,
+        billingHouseNumber,
+        billingPostalCode,
+        billingCity,
+        billingCountry,
 
         shippingSameAsBilling,
-        shippingStreet: String(shippingStreet || "").trim(),
-        shippingHouseNumber: String(shippingHouseNumber || "").trim(),
-        shippingPostalCode: String(shippingPostalCode || "").trim(),
-        shippingCity: String(shippingCity || "").trim(),
-        shippingCountry: String(shippingCountry || "").trim(),
+        shippingStreet,
+        shippingHouseNumber,
+        shippingPostalCode,
+        shippingCity,
+        shippingCountry,
       };
 
       await readJson(
@@ -170,10 +174,8 @@ export default function RegisterPage() {
             <TextField
               fullWidth
               value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
+              onChange={(e) => setCompanyName(toUpper(e.target.value))}
               required
-              autoFocus
-              autoComplete="organization"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -182,9 +184,8 @@ export default function RegisterPage() {
             <TextField
               fullWidth
               value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
+              onChange={(e) => setContactName(toUpper(e.target.value))}
               required
-              autoComplete="name"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -196,7 +197,6 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -208,13 +208,12 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete="new-password"
               helperText="Minstens 6 tekens."
               InputProps={{ sx: inputSx }}
             />
           </Field>
 
-          <Typography variant="h6" fontWeight={800} sx={{ pt: 1 }}>
+          <Typography variant="h6" fontWeight={800}>
             Bedrijfsgegevens
           </Typography>
 
@@ -222,10 +221,11 @@ export default function RegisterPage() {
             <TextField
               fullWidth
               value={vatNumber}
-              onChange={(e) => setVatNumber(formatVatNumber(e.target.value))}
+              onChange={(e) =>
+                setVatNumber(formatVatNumber(e.target.value))
+              }
               required
               placeholder="0.123.456.789"
-              inputMode="numeric"
               InputProps={{ sx: inputSx }}
             />
           </Field>
@@ -234,13 +234,12 @@ export default function RegisterPage() {
             <TextField
               fullWidth
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              autoComplete="tel"
+              onChange={(e) => setPhone(toUpper(e.target.value))}
               InputProps={{ sx: inputSx }}
             />
           </Field>
 
-          <Typography variant="h6" fontWeight={800} sx={{ pt: 1 }}>
+          <Typography variant="h6" fontWeight={800}>
             Facturatieadres
           </Typography>
 
@@ -250,9 +249,10 @@ export default function RegisterPage() {
                 <TextField
                   fullWidth
                   value={billingStreet}
-                  onChange={(e) => setBillingStreet(e.target.value)}
+                  onChange={(e) =>
+                    setBillingStreet(toUpper(e.target.value))
+                  }
                   required
-                  autoComplete="address-line1"
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
@@ -263,7 +263,9 @@ export default function RegisterPage() {
                 <TextField
                   fullWidth
                   value={billingHouseNumber}
-                  onChange={(e) => setBillingHouseNumber(e.target.value)}
+                  onChange={(e) =>
+                    setBillingHouseNumber(toUpper(e.target.value))
+                  }
                   required
                   InputProps={{ sx: inputSx }}
                 />
@@ -275,9 +277,10 @@ export default function RegisterPage() {
                 <TextField
                   fullWidth
                   value={billingPostalCode}
-                  onChange={(e) => setBillingPostalCode(e.target.value)}
+                  onChange={(e) =>
+                    setBillingPostalCode(toUpper(e.target.value))
+                  }
                   required
-                  autoComplete="postal-code"
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
@@ -288,9 +291,10 @@ export default function RegisterPage() {
                 <TextField
                   fullWidth
                   value={billingCity}
-                  onChange={(e) => setBillingCity(e.target.value)}
+                  onChange={(e) =>
+                    setBillingCity(toUpper(e.target.value))
+                  }
                   required
-                  autoComplete="address-level2"
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
@@ -301,15 +305,16 @@ export default function RegisterPage() {
                 <TextField
                   fullWidth
                   value={billingCountry}
-                  onChange={(e) => setBillingCountry(e.target.value)}
-                  autoComplete="country-name"
+                  onChange={(e) =>
+                    setBillingCountry(toUpper(e.target.value))
+                  }
                   InputProps={{ sx: inputSx }}
                 />
               </Field>
             </Grid>
           </Grid>
 
-          <Typography variant="h6" fontWeight={800} sx={{ pt: 1 }}>
+          <Typography variant="h6" fontWeight={800}>
             Leveringsadres
           </Typography>
 
@@ -317,21 +322,24 @@ export default function RegisterPage() {
             control={
               <Checkbox
                 checked={shippingSameAsBilling}
-                onChange={(e) => setShippingSameAsBilling(e.target.checked)}
+                onChange={(e) =>
+                  setShippingSameAsBilling(e.target.checked)
+                }
               />
             }
             label="Leveringsadres is hetzelfde als facturatieadres"
           />
 
-          {!shippingSameAsBilling ? (
+          {!shippingSameAsBilling && (
             <Grid container spacing={2}>
               <Grid item xs={12} md={8}>
                 <Field label="Straat">
                   <TextField
                     fullWidth
                     value={shippingStreet}
-                    onChange={(e) => setShippingStreet(e.target.value)}
-                    autoComplete="address-line1"
+                    onChange={(e) =>
+                      setShippingStreet(toUpper(e.target.value))
+                    }
                     InputProps={{ sx: inputSx }}
                   />
                 </Field>
@@ -342,7 +350,9 @@ export default function RegisterPage() {
                   <TextField
                     fullWidth
                     value={shippingHouseNumber}
-                    onChange={(e) => setShippingHouseNumber(e.target.value)}
+                    onChange={(e) =>
+                      setShippingHouseNumber(toUpper(e.target.value))
+                    }
                     InputProps={{ sx: inputSx }}
                   />
                 </Field>
@@ -353,8 +363,9 @@ export default function RegisterPage() {
                   <TextField
                     fullWidth
                     value={shippingPostalCode}
-                    onChange={(e) => setShippingPostalCode(e.target.value)}
-                    autoComplete="postal-code"
+                    onChange={(e) =>
+                      setShippingPostalCode(toUpper(e.target.value))
+                    }
                     InputProps={{ sx: inputSx }}
                   />
                 </Field>
@@ -365,8 +376,9 @@ export default function RegisterPage() {
                   <TextField
                     fullWidth
                     value={shippingCity}
-                    onChange={(e) => setShippingCity(e.target.value)}
-                    autoComplete="address-level2"
+                    onChange={(e) =>
+                      setShippingCity(toUpper(e.target.value))
+                    }
                     InputProps={{ sx: inputSx }}
                   />
                 </Field>
@@ -377,14 +389,15 @@ export default function RegisterPage() {
                   <TextField
                     fullWidth
                     value={shippingCountry}
-                    onChange={(e) => setShippingCountry(e.target.value)}
-                    autoComplete="country-name"
+                    onChange={(e) =>
+                      setShippingCountry(toUpper(e.target.value))
+                    }
                     InputProps={{ sx: inputSx }}
                   />
                 </Field>
               </Grid>
             </Grid>
-          ) : null}
+          )}
 
           <Button
             type="submit"
@@ -395,8 +408,7 @@ export default function RegisterPage() {
               minHeight: 52,
               borderRadius: 3,
               fontWeight: 700,
-              fontSize: "1rem",
-              mt: 1,
+              mt: 2,
             }}
           >
             {saving ? "Account aanmaken..." : "ACCOUNT AANMAKEN"}
