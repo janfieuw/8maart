@@ -46,10 +46,12 @@ function formatDisplayDate(value) {
 }
 
 function formatMinutes(totalMinutes) {
-  const safe = Math.max(0, Math.floor(totalMinutes || 0));
+  const rounded = Math.round(totalMinutes || 0);
+  const sign = rounded < 0 ? "-" : "";
+  const safe = Math.abs(rounded);
   const hours = Math.floor(safe / 60);
   const minutes = safe % 60;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  return `${sign}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 function buildDayKey(date) {
@@ -96,11 +98,13 @@ export default async function AttendancePage({ searchParams }) {
 
   const companyId = session.companyId;
 
+  // Belangrijk: searchParams eerst correct uitlezen
+  const params = searchParams ? await searchParams : {};
   const today = new Date();
 
-  const fromParam = searchParams?.from || formatDateInput(today);
-  const toParam = searchParams?.to || formatDateInput(today);
-  const nameParam = (searchParams?.name || "").trim();
+  const fromParam = params?.from || formatDateInput(today);
+  const toParam = params?.to || formatDateInput(today);
+  const nameParam = String(params?.name || "").trim();
 
   const fromDate = startOfDay(fromParam);
   const toDate = endOfDay(toParam);
@@ -112,14 +116,6 @@ export default async function AttendancePage({ searchParams }) {
         gte: fromDate,
         lte: toDate,
       },
-      employee: nameParam
-        ? {
-            name: {
-              contains: nameParam,
-              mode: "insensitive",
-            },
-          }
-        : undefined,
     },
     include: {
       employee: {
@@ -141,6 +137,13 @@ export default async function AttendancePage({ searchParams }) {
   for (const scan of scans) {
     if (!scan.employee) continue;
 
+    if (
+      nameParam &&
+      !scan.employee.name?.toLowerCase().includes(nameParam.toLowerCase())
+    ) {
+      continue;
+    }
+
     const dayKey = buildDayKey(scan.scannedAt);
     const key = `${scan.employeeId}__${dayKey}`;
 
@@ -160,6 +163,8 @@ export default async function AttendancePage({ searchParams }) {
   const rows = Array.from(grouped.values())
     .map((group) => {
       const attendanceMinutes = calculateAttendanceMinutes(group.scans);
+
+      // voorlopig nog geen echte expected-logica gekoppeld
       const expectedMinutes = 0;
       const differenceMinutes = attendanceMinutes - expectedMinutes;
 
@@ -179,9 +184,18 @@ export default async function AttendancePage({ searchParams }) {
       return a.employeeName.localeCompare(b.employeeName);
     });
 
-  const totalExpectedMinutes = rows.reduce((sum, row) => sum + row.expectedMinutes, 0);
-  const totalAttendanceMinutes = rows.reduce((sum, row) => sum + row.attendanceMinutes, 0);
-  const totalDifferenceMinutes = rows.reduce((sum, row) => sum + row.differenceMinutes, 0);
+  const totalExpectedMinutes = rows.reduce(
+    (sum, row) => sum + row.expectedMinutes,
+    0
+  );
+  const totalAttendanceMinutes = rows.reduce(
+    (sum, row) => sum + row.attendanceMinutes,
+    0
+  );
+  const totalDifferenceMinutes = rows.reduce(
+    (sum, row) => sum + row.differenceMinutes,
+    0
+  );
 
   return (
     <Box sx={{ px: 2, py: 2 }}>
