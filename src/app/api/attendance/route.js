@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getDemoCompanyId } from "@/lib/demo-company";
+import { getSession } from "@/lib/auth";
 
 function jsonOk(data, init) {
   return NextResponse.json({ ok: true, ...data }, init);
@@ -90,7 +90,7 @@ function computeWorkedFromEvents(events) {
   };
 }
 
-// Database gebruikt:
+// Database:
 // 1 = maandag
 // 2 = dinsdag
 // 3 = woensdag
@@ -100,7 +100,7 @@ function computeWorkedFromEvents(events) {
 // 7 = zondag
 function getRosterWeekdayIndex(dayStr) {
   const jsWeekday = startOfDayUTC(dayStr).getUTCDay(); // 0=zondag ... 6=zaterdag
-  return jsWeekday === 0 ? 7 : jsWeekday; // 1=maandag ... 7=zondag
+  return jsWeekday === 0 ? 7 : jsWeekday;
 }
 
 function computeExpectedMinutes(employee, dayStr) {
@@ -108,9 +108,7 @@ function computeExpectedMinutes(employee, dayStr) {
 
   const mode = String(employee.expectedMode || "").toUpperCase();
 
-  if (!mode) {
-    return 0;
-  }
+  if (!mode) return 0;
 
   if (mode === "ROSTER") {
     if (!Array.isArray(employee.rosterDays) || employee.rosterDays.length === 0) {
@@ -144,6 +142,14 @@ function computeExpectedMinutes(employee, dayStr) {
 
 export async function GET(req) {
   try {
+    const session = await getSession();
+
+    if (!session?.companyId) {
+      return jsonErr("Niet ingelogd.", { status: 401 });
+    }
+
+    const companyId = session.companyId;
+
     const { searchParams } = new URL(req.url);
 
     const fromStr = searchParams.get("from");
@@ -173,8 +179,6 @@ export async function GET(req) {
 
     const rangeStart = startOfDayUTC(fromDay);
     const rangeEnd = endOfDayUTC(toDay);
-
-    const companyId = await getDemoCompanyId();
 
     const employees = await prisma.employee.findMany({
       where: {
@@ -220,8 +224,9 @@ export async function GET(req) {
       return jsonOk({ rows: [] });
     }
 
-    const scanEvents = await prisma.scanEvent.findMany({
+    const events = await prisma.scanEvent.findMany({
       where: {
+        companyId,
         employeeId: {
           in: employeeIds,
         },
@@ -230,18 +235,20 @@ export async function GET(req) {
           lte: rangeEnd,
         },
       },
-      orderBy: [{ scannedAt: "asc" }],
       select: {
         id: true,
         employeeId: true,
         type: true,
         scannedAt: true,
       },
+      orderBy: {
+        scannedAt: "asc",
+      },
     });
 
     const eventsByEmployeeDay = new Map();
 
-    for (const ev of scanEvents) {
+    for (const ev of events) {
       const dayStr = formatDateOnlyUTC(new Date(ev.scannedAt));
       const key = `${ev.employeeId}__${dayStr}`;
 
@@ -264,27 +271,37 @@ export async function GET(req) {
         const workedMin = worked.workedMin;
         const deltaMin = workedMin - expectedMin;
 
-        // Alleen afgewerkte dagen tonen: minstens één IN én één OUT
-        if (worked.firstIn && worked.lastOut) {
-          rows.push({
-            id: `${employee.id}_${dayStr}`,
-            day: dayStr,
-            employeeId: employee.id,
-            employeeName: employee.name,
-            pairCode: employee.pairCode,
-            expectedMode: employee.expectedMode,
-            expectedMin,
-            workedMin,
-            deltaMin,
-            firstIn: worked.firstIn,
-            lastOut: worked.lastOut,
-          });
+        // Alleen tonen als er planning of werk is
+        if (expectedMin === 0 && workedMin === 0) {
+          continue;
         }
+
+        rows.push({
+          id: `${employee.id}_${dayStr}`,
+          day: dayStr,
+          employeeId: employee.id,
+          employeeName: employee.name,
+          pairCode: employee.pairCode,
+          expectedMin,
+          workedMin,
+          deltaMin,
+          firstIn: worked.firstIn,
+          lastOut: worked.lastOut,
+        });
       }
     }
 
+    rows.sort((a, b) => {
+      if (a.day < b.day) return 1;
+      if (a.day > b.day) return -1;
+      return String(a.employeeName || "").localeCompare(String(b.employeeName || ""));
+    });
+
     return jsonOk({ rows });
-  } catch (e) {
-    return jsonErr(e?.message || "Failed to load attendance", { status: 500 });
+  } catch (error) {
+    console.error("GET /api/attendance error:", error);
+    return jsonErr(error?.message || "Attendance laden mislukt.", {
+      status: 500,
+    });
   }
 }

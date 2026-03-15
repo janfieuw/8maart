@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import {
@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   Grid,
   Stack,
   Table,
@@ -15,7 +16,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  Chip,
 } from "@mui/material";
 
 function formatDateInput(date) {
@@ -58,8 +58,11 @@ async function loadAttendanceRows(from, to) {
   url.searchParams.set("from", from);
   url.searchParams.set("to", to);
 
+  const cookieHeader = cookies().toString();
+
   const res = await fetch(url.toString(), {
     cache: "no-store",
+    headers: cookieHeader ? { cookie: cookieHeader } : {},
   });
 
   const data = await res.json();
@@ -78,10 +81,12 @@ export default async function AttendancePage({ searchParams }) {
     redirect("/login");
   }
 
+  const params = searchParams || {};
   const today = new Date();
-  const fromParam = searchParams?.from || formatDateInput(today);
-  const toParam = searchParams?.to || formatDateInput(today);
-  const nameParam = String(searchParams?.name || "").trim();
+
+  const fromParam = params?.from || formatDateInput(today);
+  const toParam = params?.to || formatDateInput(today);
+  const nameParam = String(params?.name || "").trim();
 
   let rows = [];
   let loadError = "";
@@ -91,6 +96,7 @@ export default async function AttendancePage({ searchParams }) {
 
     rows = apiRows.filter((row) => {
       if (!nameParam) return true;
+
       return String(row.employeeName || "")
         .toLowerCase()
         .includes(nameParam.toLowerCase());
