@@ -1,5 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { Box, Card, CardContent, Chip, Grid, Stack, Typography } from "@mui/material";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
+import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import {
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
 
 function formatDate(value) {
   const date = new Date(value);
@@ -27,11 +40,38 @@ function buildScanLines(scans, employeesById, type) {
     .filter((scan) => scan.type === type)
     .map((scan) => {
       const employee = employeesById.get(scan.employeeId);
+
       return {
         id: scan.id,
-        label: `${formatDate(scan.scannedAt)} - ${employee?.name || "ONBEKEND"}`,
+        primary: employee?.name || "ONBEKEND",
+        secondary: formatDate(scan.scannedAt),
       };
     });
+}
+
+function buildStatusLines(employees, latestScanByEmployee) {
+  const working = [];
+  const absent = [];
+
+  for (const employee of employees) {
+    const latest = latestScanByEmployee[employee.id];
+
+    if (!latest || latest.type === "OUT") {
+      absent.push({
+        id: employee.id,
+        primary: employee.name,
+        secondary: latest ? `Laatste OUT: ${formatDate(latest.scannedAt)}` : "Nog geen scans",
+      });
+    } else {
+      working.push({
+        id: employee.id,
+        primary: employee.name,
+        secondary: `Laatste IN: ${formatDate(latest.scannedAt)}`,
+      });
+    }
+  }
+
+  return { working, absent };
 }
 
 function DashboardPanel({
@@ -41,34 +81,61 @@ function DashboardPanel({
   borderColor,
   chipBg,
   chipColor,
+  iconBg,
+  iconColor,
+  icon,
 }) {
   return (
     <Card
       sx={{
         height: "100%",
-        borderRadius: 4,
+        borderRadius: "28px",
         border: `1px solid ${borderColor}`,
         boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
         backgroundColor: "#ffffff",
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: "0 12px 28px rgba(15, 23, 42, 0.10)",
+        },
       }}
     >
       <CardContent sx={{ p: 3 }}>
-        <Stack spacing={2.5}>
+        <Stack spacing={2.25}>
           <Stack
             direction="row"
             justifyContent="space-between"
             alignItems="center"
-            spacing={2}
+            spacing={1.5}
           >
-            <Typography
-              sx={{
-                fontSize: "1.2rem",
-                fontWeight: 800,
-                color: "#111827",
-              }}
-            >
-              {title}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1.25}>
+              <Box
+                sx={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: iconBg,
+                  color: iconColor,
+                  flexShrink: 0,
+                }}
+              >
+                {icon}
+              </Box>
+
+              <Typography
+                sx={{
+                  fontSize: "1.2rem",
+                  fontWeight: 800,
+                  color: "#111827",
+                  lineHeight: 1.2,
+                }}
+              >
+                {title}
+              </Typography>
+            </Stack>
 
             <Chip
               label={count}
@@ -83,18 +150,31 @@ function DashboardPanel({
           </Stack>
 
           {items.length > 0 ? (
-            <Stack spacing={1.25}>
-              {items.map((item, index) => (
-                <Typography
-                  key={item.id || `${title}-${index}`}
-                  sx={{
-                    fontSize: "0.98rem",
-                    lineHeight: 1.45,
-                    color: "#1f2937",
-                  }}
-                >
-                  {item.label || item}
-                </Typography>
+            <Stack divider={<Divider flexItem sx={{ borderColor: "#eef2f7" }} />}>
+              {items.map((item) => (
+                <Box key={item.id} sx={{ py: 1.2 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "1rem",
+                      lineHeight: 1.35,
+                      color: "#111827",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {item.primary}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: "0.84rem",
+                      lineHeight: 1.35,
+                      color: "#6b7280",
+                      mt: 0.35,
+                    }}
+                  >
+                    {item.secondary}
+                  </Typography>
+                </Box>
               ))}
             </Stack>
           ) : (
@@ -103,6 +183,7 @@ function DashboardPanel({
                 fontSize: "0.95rem",
                 color: "#6b7280",
                 fontStyle: "italic",
+                pt: 0.5,
               }}
             >
               Geen gegevens
@@ -121,7 +202,6 @@ export default async function DashboardPage() {
     select: {
       id: true,
       name: true,
-      companyId: true,
     },
   });
 
@@ -132,32 +212,13 @@ export default async function DashboardPage() {
       employeeId: true,
       type: true,
       scannedAt: true,
-      companyId: true,
     },
   });
 
   const employeesById = new Map(employees.map((employee) => [employee.id, employee]));
   const latestScanByEmployee = groupLatestScanByEmployee(scans);
 
-  const workingNow = [];
-  const absentNow = [];
-
-  for (const employee of employees) {
-    const latest = latestScanByEmployee[employee.id];
-
-    if (!latest || latest.type === "OUT") {
-      absentNow.push({
-        id: employee.id,
-        label: employee.name,
-      });
-    } else {
-      workingNow.push({
-        id: employee.id,
-        label: employee.name,
-      });
-    }
-  }
-
+  const { working, absent } = buildStatusLines(employees, latestScanByEmployee);
   const latestIns = buildScanLines(scans, employeesById, "IN");
   const latestOuts = buildScanLines(scans, employeesById, "OUT");
 
@@ -191,22 +252,28 @@ export default async function DashboardPage() {
           <Grid item xs={12} md={6} xl={3}>
             <DashboardPanel
               title="Aan het werk"
-              count={workingNow.length}
-              items={workingNow}
+              count={working.length}
+              items={working}
               borderColor="#cfe8db"
               chipBg="#e8f6ee"
               chipColor="#1f7a45"
+              iconBg="#e8f6ee"
+              iconColor="#1f7a45"
+              icon={<PeopleAltOutlinedIcon fontSize="small" />}
             />
           </Grid>
 
           <Grid item xs={12} md={6} xl={3}>
             <DashboardPanel
               title="Afwezig"
-              count={absentNow.length}
-              items={absentNow}
+              count={absent.length}
+              items={absent}
               borderColor="#ead7d7"
               chipBg="#fbebeb"
               chipColor="#a33a3a"
+              iconBg="#fbebeb"
+              iconColor="#a33a3a"
+              icon={<PersonOffOutlinedIcon fontSize="small" />}
             />
           </Grid>
 
@@ -218,6 +285,9 @@ export default async function DashboardPage() {
               borderColor="#d9e6f5"
               chipBg="#eef5fc"
               chipColor="#255b92"
+              iconBg="#eef5fc"
+              iconColor="#255b92"
+              icon={<LoginOutlinedIcon fontSize="small" />}
             />
           </Grid>
 
@@ -229,6 +299,9 @@ export default async function DashboardPage() {
               borderColor="#e8dff4"
               chipBg="#f5f1fb"
               chipColor="#6f42b5"
+              iconBg="#f5f1fb"
+              iconColor="#6f42b5"
+              icon={<LogoutOutlinedIcon fontSize="small" />}
             />
           </Grid>
         </Grid>
