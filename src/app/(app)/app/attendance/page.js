@@ -86,9 +86,7 @@ export default async function AttendancePage({ searchParams }) {
     redirect("/login");
   }
 
-  // BELANGRIJK: in jouw setup searchParams awaiten
   const params = (await searchParams) || {};
-
   const today = new Date();
 
   const fromParam = String(params.from || formatDateInput(today));
@@ -170,7 +168,7 @@ export default async function AttendancePage({ searchParams }) {
                       label="Van"
                       name="from"
                       type="date"
-                      value={fromParam}
+                      defaultValue={fromParam}
                       InputLabelProps={{ shrink: true }}
                     />
 
@@ -178,7 +176,7 @@ export default async function AttendancePage({ searchParams }) {
                       label="Tot"
                       name="to"
                       type="date"
-                      value={toParam}
+                      defaultValue={toParam}
                       InputLabelProps={{ shrink: true }}
                     />
 
@@ -186,7 +184,7 @@ export default async function AttendancePage({ searchParams }) {
                       label="Naam"
                       name="name"
                       placeholder="Zoek werknemer"
-                      value={nameParam}
+                      defaultValue={nameParam}
                     />
 
                     <Button
