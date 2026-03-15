@@ -1,54 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
-  Alert,
   Box,
   Card,
   CardContent,
-  CircularProgress,
   Grid,
   Stack,
   Typography,
 } from "@mui/material";
-import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
-import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
-import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 
-async function readJson(res) {
-  const text = await res.text();
+const workingNow = ["POL", "PIET", "JAN", "MIEKE"];
+const absentNow = ["KAREL"];
 
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
+const latestIns = [
+  "15/3 - 05:00 - POL",
+  "15/3 - 05:10 - PIET",
+  "15/3 - 05:45 - JAN",
+  "15/3 - 05:51 - MIEKE",
+];
 
-  if (!res.ok || !data?.ok) {
-    throw new Error(data?.error || text || `HTTP ${res.status}`);
-  }
+const latestOuts = [
+  "14/3 - 13:01 - POL",
+  "14/3 - 13:10 - PIET",
+  "14/3 - 13:51 - MIEKE",
+  "14/3 - 13:45 - JAN",
+  "14/3 - 13:45 - KAREL",
+];
 
-  return data;
-}
-
-function StatCard({ title, value, icon }) {
+function DashboardBlock({ title, items, minHeight = 220 }) {
   return (
-    <Card sx={{ height: "100%", borderRadius: 3 }}>
-      <CardContent sx={{ p: 3 }}>
+    <Card
+      sx={{
+        borderRadius: 4,
+        border: "2px solid #12384b",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+        height: "100%",
+      }}
+    >
+      <CardContent
+        sx={{
+          p: 2.5,
+          minHeight,
+        }}
+      >
         <Stack spacing={2}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="body1" color="text.secondary" fontWeight={500}>
-              {title}
-            </Typography>
-            <Box sx={{ color: "#024659", display: "flex", alignItems: "center" }}>
-              {icon}
-            </Box>
-          </Stack>
-
-          <Typography variant="h3" fontWeight={800}>
-            {value}
+          <Typography
+            sx={{
+              fontSize: "1.1rem",
+              fontWeight: 700,
+              color: "#111827",
+            }}
+          >
+            {title}
           </Typography>
+
+          {items?.length ? (
+            <Stack spacing={1}>
+              {items.map((item, index) => (
+                <Typography
+                  key={`${title}-${index}`}
+                  sx={{
+                    fontSize: "1rem",
+                    color: "#111827",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {item}
+                </Typography>
+              ))}
+            </Stack>
+          ) : (
+            <Typography
+              sx={{
+                fontSize: "0.95rem",
+                color: "#6b7280",
+              }}
+            >
+              Geen gegevens
+            </Typography>
+          )}
         </Stack>
       </CardContent>
     </Card>
@@ -56,109 +86,49 @@ function StatCard({ title, value, icon }) {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    employees: 0,
-    scanTags: 0,
-    registrations: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      setLoading(true);
-      setError("");
-
-      try {
-        const [employeesRes, registrationsRes, accountRes] = await Promise.all([
-          fetch("/api/employees", { cache: "no-store" }),
-          fetch("/api/registrations", { cache: "no-store" }),
-          fetch("/api/account", { cache: "no-store" }),
-        ]);
-
-        const [employeesData, registrationsData, accountData] = await Promise.all([
-          readJson(employeesRes),
-          readJson(registrationsRes),
-          readJson(accountRes),
-        ]);
-
-        if (!active) return;
-
-        const employees = Array.isArray(employeesData.rows) ? employeesData.rows : [];
-        const registrations = Array.isArray(registrationsData.rows)
-          ? registrationsData.rows
-          : [];
-        const scanTags = Array.isArray(accountData.scanTags) ? accountData.scanTags : [];
-
-        setStats({
-          employees: employees.length,
-          scanTags: scanTags.length,
-          registrations: registrations.length,
-        });
-      } catch (e) {
-        if (!active) return;
-        setError(e?.message || "Dashboard laden mislukt.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    load();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
   return (
     <Box>
       <Stack spacing={3}>
         <Box>
-          <Typography variant="h4" fontWeight={800}>
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              color: "#111827",
+              mb: 0.5,
+              fontSize: { xs: "2rem", md: "2.5rem" },
+            }}
+          >
             Dashboard
+          </Typography>
+
+          <Typography
+            sx={{
+              color: "#6b7280",
+              fontSize: "1rem",
+            }}
+          >
+            Overzicht van aanwezigheid en laatste scans
           </Typography>
         </Box>
 
-        {error ? <Alert severity="error">{error}</Alert> : null}
-
-        {loading ? (
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <CircularProgress size={22} />
-                <Typography>Dashboard laden...</Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        ) : (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <StatCard
-                title="Werknemers"
-                value={stats.employees}
-                icon={<GroupOutlinedIcon />}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <StatCard
-                title="QR-codes"
-                value={stats.scanTags}
-                icon={<QrCode2OutlinedIcon />}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <StatCard
-                title="Registraties"
-                value={stats.registrations}
-                icon={<FactCheckOutlinedIcon />}
-              />
-            </Grid>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={3}>
+            <DashboardBlock title="Aan het werk" items={workingNow} />
           </Grid>
-        )}
+
+          <Grid item xs={12} md={3}>
+            <DashboardBlock title="Afwezig" items={absentNow} />
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <DashboardBlock title="Laatste IN" items={latestIns} />
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <DashboardBlock title="Laatste OUT" items={latestOuts} />
+          </Grid>
+        </Grid>
       </Stack>
     </Box>
   );
