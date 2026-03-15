@@ -8,7 +8,6 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  Grid,
   Stack,
   TextField,
   Typography,
@@ -60,13 +59,15 @@ const subtleLabelSx = {
 };
 
 const inputSx = {
-  backgroundColor: "#ffffff",
-  borderRadius: 2,
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "#ffffff",
+    borderRadius: "28px",
+  },
 };
 
 function Field({ label, children }) {
   return (
-    <Box>
+    <Box sx={{ width: "100%" }}>
       <Typography sx={subtleLabelSx}>{label}</Typography>
       {children}
     </Box>
@@ -143,7 +144,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <Stack spacing={4}>
+    <Stack spacing={4} sx={{ width: "100%" }}>
       <Box>
         <Typography
           variant="h3"
@@ -170,8 +171,8 @@ export default function RegisterPage() {
 
       {err ? <Alert severity="error">{err}</Alert> : null}
 
-      <Box component="form" onSubmit={handleSubmit}>
-        <Stack spacing={3}>
+      <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
+        <Stack spacing={3} sx={{ width: "100%" }}>
           <Typography variant="h6" fontWeight={800}>
             Account
           </Typography>
@@ -183,7 +184,7 @@ export default function RegisterPage() {
               onChange={(e) => setCompanyName(toUpper(e.target.value))}
               required
               autoComplete="organization"
-              InputProps={{ sx: inputSx }}
+              sx={inputSx}
             />
           </Field>
 
@@ -194,7 +195,7 @@ export default function RegisterPage() {
               onChange={(e) => setContactName(toUpper(e.target.value))}
               required
               autoComplete="name"
-              InputProps={{ sx: inputSx }}
+              sx={inputSx}
             />
           </Field>
 
@@ -206,7 +207,7 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              InputProps={{ sx: inputSx }}
+              sx={inputSx}
             />
           </Field>
 
@@ -219,7 +220,7 @@ export default function RegisterPage() {
               required
               autoComplete="new-password"
               helperText="Minstens 6 tekens."
-              InputProps={{ sx: inputSx }}
+              sx={inputSx}
             />
           </Field>
 
@@ -235,7 +236,7 @@ export default function RegisterPage() {
               required
               placeholder="0.123.456.789"
               inputMode="numeric"
-              InputProps={{ sx: inputSx }}
+              sx={inputSx}
             />
           </Field>
 
@@ -245,7 +246,7 @@ export default function RegisterPage() {
               value={phone}
               onChange={(e) => setPhone(toUpper(e.target.value))}
               autoComplete="tel"
-              InputProps={{ sx: inputSx }}
+              sx={inputSx}
             />
           </Field>
 
@@ -253,74 +254,58 @@ export default function RegisterPage() {
             Facturatieadres
           </Typography>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Field label="Straat">
-                <TextField
-                  fullWidth
-                  value={billingStreet}
-                  onChange={(e) => setBillingStreet(toUpper(e.target.value))}
-                  required
-                  autoComplete="address-line1"
-                  InputProps={{ sx: inputSx }}
-                />
-              </Field>
-            </Grid>
+          <Field label="Straat">
+            <TextField
+              fullWidth
+              value={billingStreet}
+              onChange={(e) => setBillingStreet(toUpper(e.target.value))}
+              required
+              autoComplete="address-line1"
+              sx={inputSx}
+            />
+          </Field>
 
-            <Grid item xs={12}>
-              <Field label="Huisnummer">
-                <TextField
-                  fullWidth
-                  value={billingHouseNumber}
-                  onChange={(e) =>
-                    setBillingHouseNumber(toUpper(e.target.value))
-                  }
-                  required
-                  InputProps={{ sx: inputSx }}
-                />
-              </Field>
-            </Grid>
+          <Field label="Huisnummer">
+            <TextField
+              fullWidth
+              value={billingHouseNumber}
+              onChange={(e) => setBillingHouseNumber(toUpper(e.target.value))}
+              required
+              sx={inputSx}
+            />
+          </Field>
 
-            <Grid item xs={12}>
-              <Field label="Postcode">
-                <TextField
-                  fullWidth
-                  value={billingPostalCode}
-                  onChange={(e) =>
-                    setBillingPostalCode(toUpper(e.target.value))
-                  }
-                  required
-                  autoComplete="postal-code"
-                  InputProps={{ sx: inputSx }}
-                />
-              </Field>
-            </Grid>
+          <Field label="Postcode">
+            <TextField
+              fullWidth
+              value={billingPostalCode}
+              onChange={(e) => setBillingPostalCode(toUpper(e.target.value))}
+              required
+              autoComplete="postal-code"
+              sx={inputSx}
+            />
+          </Field>
 
-            <Grid item xs={12}>
-              <Field label="Gemeente">
-                <TextField
-                  fullWidth
-                  value={billingCity}
-                  onChange={(e) => setBillingCity(toUpper(e.target.value))}
-                  required
-                  autoComplete="address-level2"
-                  InputProps={{ sx: inputSx }}
-                />
-              </Field>
-            </Grid>
+          <Field label="Gemeente">
+            <TextField
+              fullWidth
+              value={billingCity}
+              onChange={(e) => setBillingCity(toUpper(e.target.value))}
+              required
+              autoComplete="address-level2"
+              sx={inputSx}
+            />
+          </Field>
 
-            <Grid item xs={12}>
-              <Field label="Land">
-                <TextField
-                  fullWidth
-                  value={billingCountry}
-                  onChange={(e) => setBillingCountry(toUpper(e.target.value))}
-                  autoComplete="country-name"
-                  InputProps={{ sx: inputSx }}
-                />
-              </Field>
-            </Grid>
-          </Grid>
+          <Field label="Land">
+            <TextField
+              fullWidth
+              value={billingCountry}
+              onChange={(e) => setBillingCountry(toUpper(e.target.value))}
+              autoComplete="country-name"
+              sx={inputSx}
+            />
+          </Field>
 
           <Typography variant="h6" fontWeight={800}>
             Leveringsadres
@@ -337,72 +322,60 @@ export default function RegisterPage() {
           />
 
           {!shippingSameAsBilling ? (
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Field label="Straat">
-                  <TextField
-                    fullWidth
-                    value={shippingStreet}
-                    onChange={(e) => setShippingStreet(toUpper(e.target.value))}
-                    autoComplete="address-line1"
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
+            <>
+              <Field label="Straat">
+                <TextField
+                  fullWidth
+                  value={shippingStreet}
+                  onChange={(e) => setShippingStreet(toUpper(e.target.value))}
+                  autoComplete="address-line1"
+                  sx={inputSx}
+                />
+              </Field>
 
-              <Grid item xs={12}>
-                <Field label="Huisnummer">
-                  <TextField
-                    fullWidth
-                    value={shippingHouseNumber}
-                    onChange={(e) =>
-                      setShippingHouseNumber(toUpper(e.target.value))
-                    }
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
+              <Field label="Huisnummer">
+                <TextField
+                  fullWidth
+                  value={shippingHouseNumber}
+                  onChange={(e) =>
+                    setShippingHouseNumber(toUpper(e.target.value))
+                  }
+                  sx={inputSx}
+                />
+              </Field>
 
-              <Grid item xs={12}>
-                <Field label="Postcode">
-                  <TextField
-                    fullWidth
-                    value={shippingPostalCode}
-                    onChange={(e) =>
-                      setShippingPostalCode(toUpper(e.target.value))
-                    }
-                    autoComplete="postal-code"
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
+              <Field label="Postcode">
+                <TextField
+                  fullWidth
+                  value={shippingPostalCode}
+                  onChange={(e) =>
+                    setShippingPostalCode(toUpper(e.target.value))
+                  }
+                  autoComplete="postal-code"
+                  sx={inputSx}
+                />
+              </Field>
 
-              <Grid item xs={12}>
-                <Field label="Gemeente">
-                  <TextField
-                    fullWidth
-                    value={shippingCity}
-                    onChange={(e) => setShippingCity(toUpper(e.target.value))}
-                    autoComplete="address-level2"
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
+              <Field label="Gemeente">
+                <TextField
+                  fullWidth
+                  value={shippingCity}
+                  onChange={(e) => setShippingCity(toUpper(e.target.value))}
+                  autoComplete="address-level2"
+                  sx={inputSx}
+                />
+              </Field>
 
-              <Grid item xs={12}>
-                <Field label="Land">
-                  <TextField
-                    fullWidth
-                    value={shippingCountry}
-                    onChange={(e) =>
-                      setShippingCountry(toUpper(e.target.value))
-                    }
-                    autoComplete="country-name"
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Field>
-              </Grid>
-            </Grid>
+              <Field label="Land">
+                <TextField
+                  fullWidth
+                  value={shippingCountry}
+                  onChange={(e) => setShippingCountry(toUpper(e.target.value))}
+                  autoComplete="country-name"
+                  sx={inputSx}
+                />
+              </Field>
+            </>
           ) : null}
 
           <Button
