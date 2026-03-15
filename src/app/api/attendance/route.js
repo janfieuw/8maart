@@ -90,16 +90,9 @@ function computeWorkedFromEvents(events) {
   };
 }
 
-// Database:
-// 1 = maandag
-// 2 = dinsdag
-// 3 = woensdag
-// 4 = donderdag
-// 5 = vrijdag
-// 6 = zaterdag
-// 7 = zondag
+// 1 = maandag ... 7 = zondag
 function getRosterWeekdayIndex(dayStr) {
-  const jsWeekday = startOfDayUTC(dayStr).getUTCDay(); // 0=zondag ... 6=zaterdag
+  const jsWeekday = startOfDayUTC(dayStr).getUTCDay();
   return jsWeekday === 0 ? 7 : jsWeekday;
 }
 
@@ -149,7 +142,6 @@ export async function GET(req) {
     }
 
     const companyId = session.companyId;
-
     const { searchParams } = new URL(req.url);
 
     const fromStr = searchParams.get("from");
@@ -224,7 +216,7 @@ export async function GET(req) {
       return jsonOk({ rows: [] });
     }
 
-    const events = await prisma.scanEvent.findMany({
+    const scanEvents = await prisma.scanEvent.findMany({
       where: {
         companyId,
         employeeId: {
@@ -235,20 +227,18 @@ export async function GET(req) {
           lte: rangeEnd,
         },
       },
+      orderBy: [{ scannedAt: "asc" }],
       select: {
         id: true,
         employeeId: true,
         type: true,
         scannedAt: true,
       },
-      orderBy: {
-        scannedAt: "asc",
-      },
     });
 
     const eventsByEmployeeDay = new Map();
 
-    for (const ev of events) {
+    for (const ev of scanEvents) {
       const dayStr = formatDateOnlyUTC(new Date(ev.scannedAt));
       const key = `${ev.employeeId}__${dayStr}`;
 
@@ -271,23 +261,21 @@ export async function GET(req) {
         const workedMin = worked.workedMin;
         const deltaMin = workedMin - expectedMin;
 
-        // Alleen tonen als er planning of werk is
-        if (expectedMin === 0 && workedMin === 0) {
-          continue;
+        if (worked.firstIn && worked.lastOut) {
+          rows.push({
+            id: `${employee.id}_${dayStr}`,
+            day: dayStr,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            pairCode: employee.pairCode,
+            expectedMode: employee.expectedMode,
+            expectedMin,
+            workedMin,
+            deltaMin,
+            firstIn: worked.firstIn,
+            lastOut: worked.lastOut,
+          });
         }
-
-        rows.push({
-          id: `${employee.id}_${dayStr}`,
-          day: dayStr,
-          employeeId: employee.id,
-          employeeName: employee.name,
-          pairCode: employee.pairCode,
-          expectedMin,
-          workedMin,
-          deltaMin,
-          firstIn: worked.firstIn,
-          lastOut: worked.lastOut,
-        });
       }
     }
 
@@ -298,10 +286,7 @@ export async function GET(req) {
     });
 
     return jsonOk({ rows });
-  } catch (error) {
-    console.error("GET /api/attendance error:", error);
-    return jsonErr(error?.message || "Attendance laden mislukt.", {
-      status: 500,
-    });
+  } catch (e) {
+    return jsonErr(e?.message || "Failed to load attendance", { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import { cookies, headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import {
@@ -55,10 +55,15 @@ function getBaseUrlFromHeaders() {
 async function loadAttendanceRows(from, to) {
   const baseUrl = getBaseUrlFromHeaders();
   const url = new URL("/api/attendance", baseUrl);
+
   url.searchParams.set("from", from);
   url.searchParams.set("to", to);
 
-  const cookieHeader = cookies().toString();
+  const cookieStore = cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c) => `${c.name}=${encodeURIComponent(c.value)}`)
+    .join("; ");
 
   const res = await fetch(url.toString(), {
     cache: "no-store",
@@ -84,9 +89,9 @@ export default async function AttendancePage({ searchParams }) {
   const params = searchParams || {};
   const today = new Date();
 
-  const fromParam = params?.from || formatDateInput(today);
-  const toParam = params?.to || formatDateInput(today);
-  const nameParam = String(params?.name || "").trim();
+  const fromParam = params.from || formatDateInput(today);
+  const toParam = params.to || formatDateInput(today);
+  const nameParam = String(params.name || "").trim();
 
   let rows = [];
   let loadError = "";
