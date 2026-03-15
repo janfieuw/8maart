@@ -40,8 +40,8 @@ function formatMinutes(totalMinutes) {
   return `${sign}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-function getBaseUrlFromHeaders() {
-  const h = headers();
+async function getBaseUrlFromHeaders() {
+  const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host");
   const proto = h.get("x-forwarded-proto") || "http";
 
@@ -53,13 +53,13 @@ function getBaseUrlFromHeaders() {
 }
 
 async function loadAttendanceRows(from, to) {
-  const baseUrl = getBaseUrlFromHeaders();
+  const baseUrl = await getBaseUrlFromHeaders();
   const url = new URL("/api/attendance", baseUrl);
 
   url.searchParams.set("from", from);
   url.searchParams.set("to", to);
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${encodeURIComponent(c.value)}`)
