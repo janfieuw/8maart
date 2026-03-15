@@ -1,135 +1,112 @@
-"use client";
+import { prisma } from "@/lib/prisma";
 
-import {
-  Box,
-  Card,
-  CardContent,
-  Grid,
-  Stack,
-  Typography,
-} from "@mui/material";
+function formatDate(d) {
+  const date = new Date(d);
+  return `${date.getDate()}/${date.getMonth()+1} - ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+}
 
-const workingNow = ["POL", "PIET", "JAN", "MIEKE"];
-const absentNow = ["KAREL"];
+export default async function DashboardPage() {
 
-const latestIns = [
-  "15/3 - 05:00 - POL",
-  "15/3 - 05:10 - PIET",
-  "15/3 - 05:45 - JAN",
-  "15/3 - 05:51 - MIEKE",
-];
+  const employees = await prisma.employee.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" }
+  });
 
-const latestOuts = [
-  "14/3 - 13:01 - POL",
-  "14/3 - 13:10 - PIET",
-  "14/3 - 13:51 - MIEKE",
-  "14/3 - 13:45 - JAN",
-  "14/3 - 13:45 - KAREL",
-];
+  const scans = await prisma.scanEvent.findMany({
+    orderBy: { scannedAt: "desc" }
+  });
 
-function DashboardBlock({ title, items, minHeight = 220 }) {
+  const lastScanPerEmployee = {};
+
+  scans.forEach(scan => {
+    if (!lastScanPerEmployee[scan.employeeId]) {
+      lastScanPerEmployee[scan.employeeId] = scan;
+    }
+  });
+
+  const working = [];
+  const absent = [];
+
+  employees.forEach(emp => {
+    const last = lastScanPerEmployee[emp.id];
+
+    if (!last) {
+      absent.push(emp.name);
+      return;
+    }
+
+    if (last.type === "IN") {
+      working.push(emp.name);
+    } else {
+      absent.push(emp.name);
+    }
+  });
+
+  const lastIns = scans
+    .filter(s => s.type === "IN")
+    .map(s => {
+      const emp = employees.find(e => e.id === s.employeeId);
+      return `${formatDate(s.scannedAt)} - ${emp?.name || "?"}`;
+    });
+
+  const lastOuts = scans
+    .filter(s => s.type === "OUT")
+    .map(s => {
+      const emp = employees.find(e => e.id === s.employeeId);
+      return `${formatDate(s.scannedAt)} - ${emp?.name || "?"}`;
+    });
+
   return (
-    <Card
-      sx={{
-        borderRadius: 4,
-        border: "2px solid #12384b",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-        height: "100%",
-      }}
-    >
-      <CardContent
-        sx={{
-          p: 2.5,
-          minHeight,
-        }}
-      >
-        <Stack spacing={2}>
-          <Typography
-            sx={{
-              fontSize: "1.1rem",
-              fontWeight: 700,
-              color: "#111827",
-            }}
-          >
-            {title}
-          </Typography>
+    <div style={{padding:40}}>
 
-          {items?.length ? (
-            <Stack spacing={1}>
-              {items.map((item, index) => (
-                <Typography
-                  key={`${title}-${index}`}
-                  sx={{
-                    fontSize: "1rem",
-                    color: "#111827",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {item}
-                </Typography>
-              ))}
-            </Stack>
-          ) : (
-            <Typography
-              sx={{
-                fontSize: "0.95rem",
-                color: "#6b7280",
-              }}
-            >
-              Geen gegevens
-            </Typography>
-          )}
-        </Stack>
-      </CardContent>
-    </Card>
+      <h1 style={{fontSize:32,fontWeight:700,marginBottom:30}}>
+        Dashboard
+      </h1>
+
+      <div style={{
+        display:"grid",
+        gridTemplateColumns:"repeat(4,1fr)",
+        gap:30
+      }}>
+
+        <div style={card}>
+          <h3>Aan het werk</h3>
+          {working.map((w,i)=>(
+            <div key={i}>{w}</div>
+          ))}
+        </div>
+
+        <div style={card}>
+          <h3>Afwezig</h3>
+          {absent.map((w,i)=>(
+            <div key={i}>{w}</div>
+          ))}
+        </div>
+
+        <div style={card}>
+          <h3>Laatste IN</h3>
+          {lastIns.map((w,i)=>(
+            <div key={i}>{w}</div>
+          ))}
+        </div>
+
+        <div style={card}>
+          <h3>Laatste OUT</h3>
+          {lastOuts.map((w,i)=>(
+            <div key={i}>{w}</div>
+          ))}
+        </div>
+
+      </div>
+
+    </div>
   );
 }
 
-export default function DashboardPage() {
-  return (
-    <Box>
-      <Stack spacing={3}>
-        <Box>
-          <Typography
-            variant="h3"
-            sx={{
-              fontWeight: 800,
-              color: "#111827",
-              mb: 0.5,
-              fontSize: { xs: "2rem", md: "2.5rem" },
-            }}
-          >
-            Dashboard
-          </Typography>
-
-          <Typography
-            sx={{
-              color: "#6b7280",
-              fontSize: "1rem",
-            }}
-          >
-            Overzicht van aanwezigheid en laatste scans
-          </Typography>
-        </Box>
-
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={3}>
-            <DashboardBlock title="Aan het werk" items={workingNow} />
-          </Grid>
-
-          <Grid item xs={12} md={3}>
-            <DashboardBlock title="Afwezig" items={absentNow} />
-          </Grid>
-
-          <Grid item xs={12} md={3}>
-            <DashboardBlock title="Laatste IN" items={latestIns} />
-          </Grid>
-
-          <Grid item xs={12} md={3}>
-            <DashboardBlock title="Laatste OUT" items={latestOuts} />
-          </Grid>
-        </Grid>
-      </Stack>
-    </Box>
-  );
-}
+const card = {
+  border:"2px solid #1c3d4a",
+  borderRadius:20,
+  padding:20,
+  minHeight:220,
+  background:"#fff"
+};
