@@ -87,20 +87,20 @@ export async function GET() {
     const templateBytes = await fs.readFile(templatePath);
 
     const qrInDataUrl = await QRCode.toDataURL(scanUrl(inTag.secret), {
-      margin: 0,
-      width: 700,
+      margin: 1,
+      width: 500,
       color: {
         dark: "#000000",
-        light: "#FFFFFF",
+        light: "#0000",
       },
     });
 
     const qrOutDataUrl = await QRCode.toDataURL(scanUrl(outTag.secret), {
-      margin: 0,
-      width: 700,
+      margin: 1,
+      width: 500,
       color: {
         dark: "#000000",
-        light: "#FFFFFF",
+        light: "#0000",
       },
     });
 
@@ -125,20 +125,19 @@ export async function GET() {
       height: templateHeight,
     });
 
-    // Posities afgestemd op jouw templatevoorbeeld
-    // Bijsturen mag later nog perfect
-    const qrSize = 405;
+    // Fijnere positionering binnen de witte vakken
+    const qrSize = 330;
 
     page.drawImage(qrInImage, {
-      x: 240,
-      y: 470,
+      x: 285,
+      y: 515,
       width: qrSize,
       height: qrSize,
     });
 
     page.drawImage(qrOutImage, {
-      x: 876,
-      y: 470,
+      x: 920,
+      y: 515,
       width: qrSize,
       height: qrSize,
     });
