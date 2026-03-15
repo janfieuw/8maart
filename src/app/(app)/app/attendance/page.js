@@ -1,5 +1,5 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import {
   Box,
@@ -15,6 +15,7 @@ import {
   TableRow,
   TextField,
   Typography,
+  Chip,
 } from "@mui/material";
 
 function formatDateInput(date) {
@@ -25,23 +26,8 @@ function formatDateInput(date) {
   return `${year}-${month}-${day}`;
 }
 
-function startOfDay(value) {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(value) {
-  const d = new Date(value);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-function formatDisplayDate(value) {
-  const d = new Date(value);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
+function formatDisplayDate(dayStr) {
+  const [year, month, day] = String(dayStr).split("-");
   return `${day}/${month}/${year}`;
 }
 
@@ -54,39 +40,35 @@ function formatMinutes(totalMinutes) {
   return `${sign}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-function buildDayKey(date) {
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+function getBaseUrlFromHeaders() {
+  const h = headers();
+  const host = h.get("x-forwarded-host") || h.get("host");
+  const proto = h.get("x-forwarded-proto") || "http";
 
-function calculateAttendanceMinutes(scans) {
-  let total = 0;
-  let openIn = null;
-
-  for (const scan of scans) {
-    if (scan.type === "IN") {
-      if (!openIn) {
-        openIn = new Date(scan.scannedAt);
-      }
-      continue;
-    }
-
-    if (scan.type === "OUT" && openIn) {
-      const out = new Date(scan.scannedAt);
-      const diffMs = out.getTime() - openIn.getTime();
-
-      if (diffMs > 0) {
-        total += Math.floor(diffMs / 60000);
-      }
-
-      openIn = null;
-    }
+  if (!host) {
+    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   }
 
-  return total;
+  return `${proto}://${host}`;
+}
+
+async function loadAttendanceRows(from, to) {
+  const baseUrl = getBaseUrlFromHeaders();
+  const url = new URL("/api/attendance", baseUrl);
+  url.searchParams.set("from", from);
+  url.searchParams.set("to", to);
+
+  const res = await fetch(url.toString(), {
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || "Attendance laden mislukt.");
+  }
+
+  return Array.isArray(data.rows) ? data.rows : [];
 }
 
 export default async function AttendancePage({ searchParams }) {
@@ -96,104 +78,37 @@ export default async function AttendancePage({ searchParams }) {
     redirect("/login");
   }
 
-  const companyId = session.companyId;
-
-  // Belangrijk: searchParams eerst correct uitlezen
-  const params = searchParams ? await searchParams : {};
   const today = new Date();
+  const fromParam = searchParams?.from || formatDateInput(today);
+  const toParam = searchParams?.to || formatDateInput(today);
+  const nameParam = String(searchParams?.name || "").trim();
 
-  const fromParam = params?.from || formatDateInput(today);
-  const toParam = params?.to || formatDateInput(today);
-  const nameParam = String(params?.name || "").trim();
+  let rows = [];
+  let loadError = "";
 
-  const fromDate = startOfDay(fromParam);
-  const toDate = endOfDay(toParam);
+  try {
+    const apiRows = await loadAttendanceRows(fromParam, toParam);
 
-  const scans = await prisma.scanEvent.findMany({
-    where: {
-      companyId,
-      scannedAt: {
-        gte: fromDate,
-        lte: toDate,
-      },
-    },
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          pairCode: true,
-        },
-      },
-    },
-    orderBy: [
-      { scannedAt: "asc" },
-      { employeeId: "asc" },
-    ],
-  });
-
-  const grouped = new Map();
-
-  for (const scan of scans) {
-    if (!scan.employee) continue;
-
-    if (
-      nameParam &&
-      !scan.employee.name?.toLowerCase().includes(nameParam.toLowerCase())
-    ) {
-      continue;
-    }
-
-    const dayKey = buildDayKey(scan.scannedAt);
-    const key = `${scan.employeeId}__${dayKey}`;
-
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        date: dayKey,
-        employeeId: scan.employeeId,
-        employeeName: scan.employee.name || "-",
-        pairCode: scan.employee.pairCode || "-",
-        scans: [],
-      });
-    }
-
-    grouped.get(key).scans.push(scan);
+    rows = apiRows.filter((row) => {
+      if (!nameParam) return true;
+      return String(row.employeeName || "")
+        .toLowerCase()
+        .includes(nameParam.toLowerCase());
+    });
+  } catch (error) {
+    loadError = error?.message || "Attendance laden mislukt.";
   }
 
-  const rows = Array.from(grouped.values())
-    .map((group) => {
-      const attendanceMinutes = calculateAttendanceMinutes(group.scans);
-
-      // voorlopig nog geen echte expected-logica gekoppeld
-      const expectedMinutes = 0;
-      const differenceMinutes = attendanceMinutes - expectedMinutes;
-
-      return {
-        key: `${group.employeeId}-${group.date}`,
-        date: group.date,
-        employeeName: group.employeeName,
-        pairCode: group.pairCode,
-        expectedMinutes,
-        attendanceMinutes,
-        differenceMinutes,
-      };
-    })
-    .sort((a, b) => {
-      if (a.date < b.date) return 1;
-      if (a.date > b.date) return -1;
-      return a.employeeName.localeCompare(b.employeeName);
-    });
-
   const totalExpectedMinutes = rows.reduce(
-    (sum, row) => sum + row.expectedMinutes,
+    (sum, row) => sum + Number(row.expectedMin || 0),
     0
   );
   const totalAttendanceMinutes = rows.reduce(
-    (sum, row) => sum + row.attendanceMinutes,
+    (sum, row) => sum + Number(row.workedMin || 0),
     0
   );
   const totalDifferenceMinutes = rows.reduce(
-    (sum, row) => sum + row.differenceMinutes,
+    (sum, row) => sum + Number(row.deltaMin || 0),
     0
   );
 
@@ -273,6 +188,12 @@ export default async function AttendancePage({ searchParams }) {
                 </Box>
               </Stack>
 
+              {loadError ? (
+                <Typography sx={{ color: "#b42318", fontWeight: 600 }}>
+                  {loadError}
+                </Typography>
+              ) : null}
+
               <Table>
                 <TableHead>
                   <TableRow>
@@ -294,13 +215,20 @@ export default async function AttendancePage({ searchParams }) {
                     </TableRow>
                   ) : (
                     rows.map((row) => (
-                      <TableRow key={row.key}>
-                        <TableCell>{formatDisplayDate(row.date)}</TableCell>
+                      <TableRow key={row.id}>
+                        <TableCell>{formatDisplayDate(row.day)}</TableCell>
                         <TableCell>{row.employeeName}</TableCell>
                         <TableCell>{row.pairCode}</TableCell>
-                        <TableCell>{formatMinutes(row.expectedMinutes)}</TableCell>
-                        <TableCell>{formatMinutes(row.attendanceMinutes)}</TableCell>
-                        <TableCell>{formatMinutes(row.differenceMinutes)}</TableCell>
+                        <TableCell>{formatMinutes(row.expectedMin)}</TableCell>
+                        <TableCell>{formatMinutes(row.workedMin)}</TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={formatMinutes(row.deltaMin)}
+                            color={row.deltaMin < 0 ? "error" : "success"}
+                            variant="outlined"
+                          />
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
