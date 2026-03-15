@@ -157,8 +157,14 @@ export default function RegisterPage() {
           Account aanmaken
         </Typography>
 
-        <Typography color="text.secondary">
-          Maak een nieuwe omgeving aan voor je bedrijf.
+        <Typography
+          sx={{
+            fontSize: "0.8rem",
+            color: "#6b7280",
+            mb: 1,
+          }}
+        >
+          De gegevens worden automatisch omgezet in hoofdletters
         </Typography>
       </Box>
 
