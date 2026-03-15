@@ -11,16 +11,47 @@ import {
   Typography,
 } from "@mui/material";
 
+function readJsonSafe(text) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readJson(res) {
+  const text = await res.text();
+  const data = readJsonSafe(text);
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
+
+const inputSx = {
+  backgroundColor: "#ffffff",
+  borderRadius: 2,
+};
+
+const subtleLabelSx = {
+  fontSize: "0.85rem",
+  mb: 0.6,
+  color: "#374151",
+  fontWeight: 500,
+};
+
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setErr("");
-
-    const formData = new FormData(e.currentTarget);
-    const email = String(formData.get("email") || "").trim();
-    const password = String(formData.get("password") || "");
+    setSaving(true);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -29,20 +60,17 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
-          password,
+          email: String(email || "").trim(),
+          password: String(password || ""),
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "Inloggen mislukt.");
-      }
-
-      window.location.href = "/app/dashboard";
+      await readJson(res);
+      window.location.href = "/app";
     } catch (e) {
       setErr(e?.message || "Inloggen mislukt.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -69,61 +97,85 @@ export default function LoginPage() {
       {err ? <Alert severity="error">{err}</Alert> : null}
 
       <Box component="form" onSubmit={handleSubmit}>
-        <Stack spacing={3}>
-          <TextField
-            name="email"
-            label="E-mailadres"
-            type="email"
-            required
-            fullWidth
-            InputLabelProps={{
-              sx: {
-                "& .MuiFormLabel-asterisk": {
-                  display: "none",
-                },
-              },
-            }}
-          />
+        <Stack spacing={2.5}>
+          <Box>
+            <Typography sx={subtleLabelSx}>E-mailadres</Typography>
+            <TextField
+              fullWidth
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoFocus
+              autoComplete="email"
+              placeholder="naam@bedrijf.be"
+              InputProps={{
+                sx: inputSx,
+              }}
+            />
+          </Box>
 
-          <TextField
-            name="password"
-            label="Wachtwoord"
-            type="password"
-            required
-            fullWidth
-            InputLabelProps={{
-              sx: {
-                "& .MuiFormLabel-asterisk": {
-                  display: "none",
-                },
-              },
-            }}
-          />
+          <Box>
+            <Typography sx={subtleLabelSx}>Wachtwoord</Typography>
+            <TextField
+              fullWidth
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              InputProps={{
+                sx: inputSx,
+              }}
+            />
+          </Box>
+
+          <Box>
+            <Link
+              href="/forgot-password"
+              style={{
+                color: "#374151",
+                textDecoration: "none",
+                fontSize: "0.9rem",
+                fontWeight: 500,
+              }}
+            >
+              Wachtwoord vergeten?
+            </Link>
+          </Box>
 
           <Button
             type="submit"
             variant="contained"
             size="large"
+            disabled={saving}
             sx={{
-              minHeight: 56,
+              mt: 1,
               borderRadius: 3,
+              minHeight: 52,
               fontWeight: 700,
               fontSize: "1rem",
             }}
           >
-            Inloggen
+            {saving ? "Bezig..." : "INLOGGEN"}
           </Button>
 
-          <Typography color="text.secondary">
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              color: "#374151",
+            }}
+          >
             Nog geen account?{" "}
-            <Button
-              component={Link}
+            <Link
               href="/register"
-              variant="text"
-              sx={{ p: 0, minWidth: 0, verticalAlign: "baseline" }}
+              style={{
+                color: "#2e8b57",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
             >
-              Account aanmaken
-            </Button>
+              ACCOUNT AANMAKEN
+            </Link>
           </Typography>
         </Stack>
       </Box>
