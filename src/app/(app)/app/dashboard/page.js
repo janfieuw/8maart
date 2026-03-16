@@ -1,10 +1,7 @@
+import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import {
-  buildEmployeeBalances,
-  formatBalanceMinutes,
-} from "@/lib/work-balance";
 
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
@@ -29,6 +26,12 @@ function formatDate(value) {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
   return `${day}/${month} - ${hours}:${minutes}`;
+}
+
+function formatBalanceMinutes(min) {
+  const rounded = Math.round(Number(min || 0));
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded} minuten`;
 }
 
 function groupLatestScanByEmployee(scans) {
@@ -82,6 +85,46 @@ function buildStatusLines(employees, latestScanByEmployee) {
   }
 
   return { working, absent };
+}
+
+async function getBaseUrlFromHeaders() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") || h.get("host");
+  const proto = h.get("x-forwarded-proto") || "http";
+
+  if (!host) {
+    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  }
+
+  return `${proto}://${host}`;
+}
+
+async function loadAttendanceRowsForToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  const baseUrl = await getBaseUrlFromHeaders();
+  const url = new URL("/api/attendance", baseUrl);
+
+  url.searchParams.set("from", today);
+  url.searchParams.set("to", today);
+
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c) => `${c.name}=${encodeURIComponent(c.value)}`)
+    .join("; ");
+
+  const res = await fetch(url.toString(), {
+    cache: "no-store",
+    headers: cookieHeader ? { cookie: cookieHeader } : {},
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data?.ok) {
+    return [];
+  }
+
+  return Array.isArray(data.rows) ? data.rows : [];
 }
 
 function DashboardPanel({
@@ -270,7 +313,6 @@ export default async function DashboardPage() {
     select: {
       id: true,
       name: true,
-      dailyMinutes: true,
     },
   });
 
@@ -287,6 +329,25 @@ export default async function DashboardPage() {
     },
   });
 
+  const attendanceRows = await loadAttendanceRowsForToday();
+
+  const balances = employees.map((employee) => {
+    const employeeRows = attendanceRows.filter(
+      (row) => row.employeeId === employee.id
+    );
+
+    const balanceMinutes = employeeRows.reduce(
+      (sum, row) => sum + Number(row.deltaMin || 0),
+      0
+    );
+
+    return {
+      employeeId: employee.id,
+      name: employee.name,
+      balanceMinutes,
+    };
+  });
+
   const employeesById = new Map(
     employees.map((employee) => [employee.id, employee])
   );
@@ -295,12 +356,6 @@ export default async function DashboardPage() {
   const { working, absent } = buildStatusLines(employees, latestScanByEmployee);
   const latestIns = buildScanLines(scans, employeesById, "IN");
   const latestOuts = buildScanLines(scans, employeesById, "OUT");
-
-  const balances = buildEmployeeBalances({
-    employees,
-    scans,
-    defaultDailyMinutes: 8 * 60,
-  });
 
   return (
     <Box sx={{ px: { xs: 1, md: 2 }, py: 1 }}>
