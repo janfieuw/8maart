@@ -19,7 +19,7 @@ export async function GET(req, ctx) {
     const tag = await prisma.scanTag.findUnique({
       where: { secret },
       include: {
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,
@@ -45,7 +45,7 @@ export async function GET(req, ctx) {
         secret: tag.secret,
         direction: tag.direction,
         companyId: tag.companyId,
-        companyName: tag.company?.name || "",
+        companyName: tag.Company?.name || "",
       },
     });
   } catch (error) {
