@@ -99,7 +99,7 @@ async function getBaseUrlFromHeaders() {
   return `${proto}://${host}`;
 }
 
-async function loadAttendanceRowsForToday() {
+async function loadTodayAttendanceRows() {
   const today = new Date().toISOString().slice(0, 10);
   const baseUrl = await getBaseUrlFromHeaders();
   const url = new URL("/api/attendance", baseUrl);
@@ -329,10 +329,10 @@ export default async function DashboardPage() {
     },
   });
 
-  const attendanceRows = await loadAttendanceRowsForToday();
+  const todayAttendanceRows = await loadTodayAttendanceRows();
 
   const balances = employees.map((employee) => {
-    const employeeRows = attendanceRows.filter(
+    const employeeRows = todayAttendanceRows.filter(
       (row) => row.employeeId === employee.id
     );
 
