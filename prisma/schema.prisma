@@ -31,7 +31,7 @@ model Company {
   nextRenewalAt       DateTime?
   deactivatedAt       DateTime?
   createdAt           DateTime           @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime           @updatedAt
 
   employees           Employee[]
   scanEvents          ScanEvent[]
@@ -50,8 +50,6 @@ model Employee {
   active              Boolean               @default(true)
   createdAt           DateTime              @default(now())
   expectedMode        ExpectedMode          @default(ROSTER)
-
-  /// NIEUW voor work balance
   dailyMinutes        Int                   @default(480)
 
   Device              Device[]
@@ -93,7 +91,7 @@ model ScanEvent {
 }
 
 model EmployeeCalendarDay {
-  id              String   @id
+  id              String   @id @default(cuid())
   employeeId      String
   date            DateTime @db.Date
   expectedMinutes Int
@@ -105,7 +103,7 @@ model EmployeeCalendarDay {
 }
 
 model EmployeeRosterDay {
-  id              String   @id
+  id              String   @id @default(cuid())
   employeeId      String
   weekday         Int
   expectedMinutes Int
@@ -117,7 +115,7 @@ model EmployeeRosterDay {
 }
 
 model ScanTag {
-  id        String        @id
+  id        String        @id @default(cuid())
   secret    String        @unique
   createdAt DateTime      @default(now())
   direction ScanDirection
@@ -131,14 +129,14 @@ model ScanTag {
 }
 
 model User {
-  id           String   @id
+  id           String   @id @default(cuid())
   companyId    String
   email        String   @unique
   passwordHash String
   name         String?
   createdAt    DateTime @default(now())
 
-  Company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }
