@@ -7,73 +7,58 @@ datasource db {
 }
 
 model Company {
-  id                    String             @id @default(cuid())
-  name                  String
-  slug                  String             @unique
-  vatNumber             String?
-  phone                 String?
+  id                  String             @id @default(cuid())
+  name                String
+  slug                String             @unique
+  vatNumber           String?
+  phone               String?
+  billingStreet       String?
+  billingHouseNumber  String?
+  billingPostalCode   String?
+  billingCity         String?
+  billingCountry      String?
+  shippingStreet      String?
+  shippingHouseNumber String?
+  shippingPostalCode  String?
+  shippingCity        String?
+  shippingCountry     String?
+  contactEmail        String?
+  subscriptionNumber  String?            @unique
+  subscriptionStatus  SubscriptionStatus @default(TRIAL)
+  trialStartsAt       DateTime?
+  trialEndsAt         DateTime?
+  activatedAt         DateTime?
+  nextRenewalAt       DateTime?
+  deactivatedAt       DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime
 
-  billingStreet         String?
-  billingHouseNumber    String?
-  billingPostalCode     String?
-  billingCity           String?
-  billingCountry        String?
-
-  shippingStreet        String?
-  shippingHouseNumber   String?
-  shippingPostalCode    String?
-  shippingCity          String?
-  shippingCountry       String?
-
-  contactEmail          String?
-  subscriptionNumber    String?            @unique
-  subscriptionStatus    SubscriptionStatus @default(TRIAL)
-  trialStartsAt         DateTime?
-  trialEndsAt           DateTime?
-  activatedAt           DateTime?
-  nextRenewalAt         DateTime?
-  deactivatedAt         DateTime?
-
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-
-  users                 User[]
-  employees             Employee[]
-  scanTags              ScanTag[]
-  scanEvents            ScanEvent[]
+  employees           Employee[]
+  scanEvents          ScanEvent[]
+  ScanTag             ScanTag[]
+  User                User[]
 
   @@index([name])
   @@index([subscriptionStatus])
 }
 
-model User {
-  id           String   @id @default(cuid())
-  companyId    String
-  email        String   @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime @default(now())
-
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-}
-
 model Employee {
-  id           String                @id @default(cuid())
-  companyId    String
-  name         String
-  pairCode     String                @unique
-  active       Boolean               @default(true)
-  createdAt    DateTime              @default(now())
-  expectedMode ExpectedMode          @default(ROSTER)
+  id                  String                @id @default(cuid())
+  companyId           String
+  name                String
+  pairCode            String                @unique
+  active              Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  expectedMode        ExpectedMode          @default(ROSTER)
 
-  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// NIEUW voor work balance
+  dailyMinutes        Int                   @default(480)
 
-  devices      Device[]
-  calendarDays EmployeeCalendarDay[]
-  rosterDays   EmployeeRosterDay[]
-  scanEvents   ScanEvent[]
+  Device              Device[]
+  company             Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  EmployeeCalendarDay EmployeeCalendarDay[]
+  EmployeeRosterDay   EmployeeRosterDay[]
+  scanEvents          ScanEvent[]
 
   @@index([companyId])
   @@index([name])
@@ -85,47 +70,9 @@ model Device {
   deviceToken String   @unique
   createdAt   DateTime @default(now())
 
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
-}
-
-model EmployeeRosterDay {
-  id              String   @id @default(cuid())
-  employeeId      String
-  weekday         Int
-  expectedMinutes Int
-
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, weekday])
-  @@index([employeeId])
-}
-
-model EmployeeCalendarDay {
-  id              String   @id @default(cuid())
-  employeeId      String
-  date            DateTime @db.Date
-  expectedMinutes Int
-
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, date])
-  @@index([employeeId])
-}
-
-model ScanTag {
-  id         String        @id @default(cuid())
-  companyId  String
-  secret     String        @unique
-  createdAt  DateTime      @default(now())
-  direction  ScanDirection
-
-  company    Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  scanEvents ScanEvent[]
-
-  @@unique([companyId, direction])
-  @@index([companyId])
 }
 
 model ScanEvent {
@@ -138,11 +85,67 @@ model ScanEvent {
 
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  scanTag    ScanTag  @relation(fields: [scanTagId], references: [id], onDelete: Cascade)
+  ScanTag    ScanTag  @relation(fields: [scanTagId], references: [id], onDelete: Cascade)
 
   @@index([companyId, scannedAt])
   @@index([employeeId, scannedAt])
   @@index([scanTagId, scannedAt])
+}
+
+model EmployeeCalendarDay {
+  id              String   @id
+  employeeId      String
+  date            DateTime @db.Date
+  expectedMinutes Int
+
+  Employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+model EmployeeRosterDay {
+  id              String   @id
+  employeeId      String
+  weekday         Int
+  expectedMinutes Int
+
+  Employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, weekday])
+  @@index([employeeId])
+}
+
+model ScanTag {
+  id        String        @id
+  secret    String        @unique
+  createdAt DateTime      @default(now())
+  direction ScanDirection
+  companyId String
+
+  ScanEvent ScanEvent[]
+  Company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, direction])
+  @@index([companyId])
+}
+
+model User {
+  id           String   @id
+  companyId    String
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  Company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+enum ScanType {
+  IN
+  OUT
 }
 
 enum ExpectedMode {
@@ -151,11 +154,6 @@ enum ExpectedMode {
 }
 
 enum ScanDirection {
-  IN
-  OUT
-}
-
-enum ScanType {
   IN
   OUT
 }
