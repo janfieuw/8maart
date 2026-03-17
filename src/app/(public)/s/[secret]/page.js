@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Alert,
@@ -33,20 +33,11 @@ async function readJson(res) {
   return data;
 }
 
-function isDeviceNotPairedError(message) {
-  const msg = String(message || "").toLowerCase();
-
-  return (
-    msg.includes("toestel niet gekoppeld") ||
-    msg.includes("werknemer niet gevonden")
-  );
-}
-
 export default function PublicScanPage() {
   const params = useParams();
   const secret = String(params?.secret || "").trim();
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [pairing, setPairing] = useState(false);
 
   const [scanTag, setScanTag] = useState(null);
@@ -55,16 +46,8 @@ export default function PublicScanPage() {
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
-  const [showPairForm, setShowPairForm] = useState(false);
 
-  const autoTriedRef = useRef(false);
-
-  const direction = useMemo(
-    () => String(scanTag?.direction || "").toUpperCase(),
-    [scanTag]
-  );
-
-  // Device token
+  // Device token ophalen
   useEffect(() => {
     const token = getOrCreateDeviceToken();
     setDeviceToken(token);
@@ -106,42 +89,14 @@ export default function PublicScanPage() {
     };
   }, [secret]);
 
-  // Auto scan poging
-  useEffect(() => {
-    async function tryAutoScan() {
-      if (
-        !loading &&
-        scanTag &&
-        deviceToken &&
-        secret &&
-        !autoTriedRef.current
-      ) {
-        autoTriedRef.current = true;
-
-        try {
-          await fetch(`/api/scan/${secret}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ deviceToken }),
-          });
-        } catch (e) {
-          const message = e?.message || "";
-
-          if (isDeviceNotPairedError(message)) {
-            setShowPairForm(true);
-          } else {
-            setError(message);
-          }
-        }
-      }
-    }
-
-    tryAutoScan();
-  }, [loading, scanTag, deviceToken, secret]);
-
   // Koppelen
   async function pairDevice(e) {
     e.preventDefault();
+
+    if (!pairCode.trim()) {
+      setError("Voer je PairCode in.");
+      return;
+    }
 
     setPairing(true);
     setError("");
@@ -168,8 +123,6 @@ export default function PublicScanPage() {
       setPairing(false);
     }
   }
-
-  const needsPairCode = showPairForm && !success;
 
   return (
     <Box
@@ -214,7 +167,7 @@ export default function PublicScanPage() {
           ) : null}
 
           {/* ✅ PAIR FORM */}
-          {needsPairCode ? (
+          {!success && !loading && scanTag ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Box component="form" onSubmit={pairDevice}>
@@ -233,14 +186,14 @@ export default function PublicScanPage() {
                       onChange={(e) => setPairCode(e.target.value)}
                       fullWidth
                       autoComplete="off"
-                      disabled={loading || pairing || !scanTag}
+                      disabled={pairing}
                     />
 
                     <Button
                       type="submit"
                       variant="contained"
                       size="large"
-                      disabled={loading || pairing || !scanTag}
+                      disabled={pairing}
                       sx={{
                         py: 2,
                         fontSize: 20,
@@ -261,7 +214,7 @@ export default function PublicScanPage() {
           ) : null}
 
           {/* LOADING */}
-          {!success && loading ? (
+          {loading ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Stack direction="row" spacing={2} alignItems="center">
