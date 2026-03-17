@@ -32,6 +32,7 @@ export async function POST(request, context) {
     const pairCode = normalizePairCode(body?.pairCode);
     const deviceToken = String(body?.deviceToken || "").trim();
 
+    // 🔍 1. Tag ophalen
     const tag = await prisma.scanTag.findUnique({
       where: { secret },
     });
@@ -40,14 +41,11 @@ export async function POST(request, context) {
       return jsonError("Tag niet gevonden", 404);
     }
 
-    if (!tag.companyId) {
-      return jsonError("Tag is ongeldig", 500);
-    }
-
     const companyId = tag.companyId;
 
     let employee = null;
 
+    // ✅ 2. PRIMARY: via device (BELANGRIJKSTE FLOW)
     if (deviceToken) {
       const device = await prisma.device.findUnique({
         where: { deviceToken },
@@ -56,14 +54,12 @@ export async function POST(request, context) {
         },
       });
 
-      if (
-        device?.employee?.active &&
-        device.employee.companyId === companyId
-      ) {
+      if (device?.employee?.active) {
         employee = device.employee;
       }
     }
 
+    // ✅ 3. FALLBACK: via pairCode (voor eerste scan of debugging)
     if (!employee && pairCode) {
       employee = await prisma.employee.findFirst({
         where: {
@@ -74,13 +70,18 @@ export async function POST(request, context) {
       });
     }
 
+    // ❌ 4. Geen employee gevonden
     if (!employee) {
-      return jsonError("Werknemer niet gevonden of toestel niet gekoppeld", 404);
+      return jsonError(
+        "Werknemer niet gevonden of toestel niet gekoppeld",
+        404
+      );
     }
 
+    // ✅ 5. Scan registreren
     const scanEvent = await prisma.scanEvent.create({
       data: {
-        companyId,
+        companyId: employee.companyId, // 🔥 belangrijk: van employee, niet tag
         employeeId: employee.id,
         scanTagId: tag.id,
         type: tag.direction,
@@ -96,7 +97,6 @@ export async function POST(request, context) {
         name: employee.name,
         pairCode: employee.pairCode,
       },
-      scanEvent,
     });
   } catch (error) {
     console.error("POST /api/scan/[secret] error:", error);
