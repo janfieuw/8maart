@@ -301,32 +301,34 @@ export default function PublicScanPage() {
             </Typography>
           </Box>
 
-          <Card sx={{ borderRadius: 4 }}>
-            <CardContent sx={{ p: 4 }}>
-              {loading ? (
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <CircularProgress size={22} />
-                  <Typography>QR laden...</Typography>
-                </Stack>
-              ) : scanTag ? (
-                <Stack spacing={3}>
-                  <Typography variant="h3" fontWeight={900}>
-                    QR {direction || "-"}
-                  </Typography>
+          {!needsPairCode && !success ? (
+            <Card sx={{ borderRadius: 4 }}>
+              <CardContent sx={{ p: 4 }}>
+                {loading ? (
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <CircularProgress size={22} />
+                    <Typography>QR laden...</Typography>
+                  </Stack>
+                ) : scanTag ? (
+                  <Stack spacing={3}>
+                    <Typography variant="h3" fontWeight={900}>
+                      QR {direction || "-"}
+                    </Typography>
 
-                  <Box>{directionChip(direction)}</Box>
+                    <Box>{directionChip(direction)}</Box>
 
-                  <Typography variant="h5" color="text.secondary">
-                    Bedrijf: {scanTag.companyName || "-"}
-                  </Typography>
-                </Stack>
-              ) : error ? (
-                <Alert severity="error">{error}</Alert>
-              ) : (
-                <Alert severity="warning">Geen QR-gegevens gevonden.</Alert>
-              )}
-            </CardContent>
-          </Card>
+                    <Typography variant="h5" color="text.secondary">
+                      Bedrijf: {scanTag.companyName || "-"}
+                    </Typography>
+                  </Stack>
+                ) : error ? (
+                  <Alert severity="error">{error}</Alert>
+                ) : (
+                  <Alert severity="warning">Geen QR-gegevens gevonden.</Alert>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
 
           {success ? (
             <Card
