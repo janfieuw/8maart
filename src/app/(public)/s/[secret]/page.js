@@ -53,6 +53,17 @@ async function readJson(res) {
   return data;
 }
 
+function isDeviceNotPairedError(message) {
+  const msg = String(message || "").toLowerCase();
+
+  return (
+    msg.includes("toestel niet gekoppeld") ||
+    msg.includes("werknemer niet gevonden") ||
+    msg.includes("device not paired") ||
+    msg.includes("employee not found")
+  );
+}
+
 export default function PublicScanPage() {
   const params = useParams();
   const secret = String(params?.secret || "").trim();
@@ -69,6 +80,7 @@ export default function PublicScanPage() {
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState("");
   const [deviceJustPaired, setDeviceJustPaired] = useState(false);
+  const [showPairForm, setShowPairForm] = useState(false);
 
   const autoTriedRef = useRef(false);
 
@@ -133,7 +145,6 @@ export default function PublicScanPage() {
     setSubmitting(true);
     setError("");
     setSuccess(null);
-    setDeviceJustPaired(false);
 
     try {
       const payload = {
@@ -153,9 +164,9 @@ export default function PublicScanPage() {
       const data = await readJson(res);
       setSuccess(data);
       setPairedEmployee(data.employee || null);
+      setShowPairForm(false);
       return data;
     } catch (e) {
-      setError(e?.message || "Scan registreren mislukt.");
       throw e;
     } finally {
       setSubmitting(false);
@@ -195,6 +206,7 @@ export default function PublicScanPage() {
 
       setPairedEmployee(pairData.employee || null);
       setDeviceJustPaired(true);
+      setShowPairForm(false);
       setError("");
       setSuccess({
         pairedOnly: true,
@@ -203,6 +215,7 @@ export default function PublicScanPage() {
       });
     } catch (e) {
       setError(e?.message || "Koppelen mislukt.");
+      setShowPairForm(true);
     } finally {
       setPairing(false);
     }
@@ -227,6 +240,7 @@ export default function PublicScanPage() {
       setSuccess(null);
       setError("");
       setDeviceJustPaired(false);
+      setShowPairForm(false);
       autoTriedRef.current = false;
     } catch {
       setError("Toestel ontkoppelen mislukt.");
@@ -247,8 +261,16 @@ export default function PublicScanPage() {
 
         try {
           await submitScan();
-        } catch {
-          // fout wordt al getoond
+        } catch (e) {
+          const message = e?.message || "Scan registreren mislukt.";
+
+          if (isDeviceNotPairedError(message)) {
+            setError("");
+            setShowPairForm(true);
+          } else {
+            setError(message);
+            setShowPairForm(false);
+          }
         }
       }
     }
@@ -257,7 +279,7 @@ export default function PublicScanPage() {
   }, [loading, scanTag, deviceToken, secret, deviceJustPaired]);
 
   const needsPairCode =
-    !success && !submitting && !pairing && !!error && !deviceJustPaired;
+    showPairForm && !success && !submitting && !pairing && !!scanTag;
 
   return (
     <Box
