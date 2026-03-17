@@ -51,7 +51,7 @@ export default function PublicScanPage() {
   const [scanTag, setScanTag] = useState(null);
   const [pairCode, setPairCode] = useState("");
   const [deviceToken, setDeviceToken] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle | paired | scanned
   const [error, setError] = useState("");
   const [showPairForm, setShowPairForm] = useState(false);
 
@@ -123,7 +123,7 @@ export default function PublicScanPage() {
     async function tryAutoScan() {
       try {
         await runScan(deviceToken);
-        setSuccess(true);
+        setStatus("scanned");
         setShowPairForm(false);
         setError("");
       } catch (e) {
@@ -168,9 +168,7 @@ export default function PublicScanPage() {
 
       await readJson(pairRes);
 
-      await runScan(deviceToken);
-
-      setSuccess(true);
+      setStatus("paired");
       setShowPairForm(false);
       setError("");
     } catch (e) {
@@ -194,7 +192,7 @@ export default function PublicScanPage() {
     >
       <Box sx={{ width: "100%", maxWidth: 420 }}>
         <Stack spacing={3}>
-          {success ? (
+          {status === "paired" ? (
             <Card
               sx={{
                 borderRadius: 4,
@@ -206,20 +204,38 @@ export default function PublicScanPage() {
               <CardContent sx={{ p: 5 }}>
                 <Stack spacing={3} alignItems="center">
                   <CheckCircleOutlineIcon color="success" sx={{ fontSize: 50 }} />
-
                   <Typography variant="h4" fontWeight={900}>
                     SMARTPHONE SUCCESVOL GEKOPPELD
                   </Typography>
-
                   <Typography variant="h6" color="text.secondary">
-                    Start nu met scannen
+                    Scan nu opnieuw de QR-code
                   </Typography>
                 </Stack>
               </CardContent>
             </Card>
           ) : null}
 
-          {!success && loading ? (
+          {status === "scanned" ? (
+            <Card
+              sx={{
+                borderRadius: 4,
+                border: "3px solid",
+                borderColor: "success.main",
+                textAlign: "center",
+              }}
+            >
+              <CardContent sx={{ p: 5 }}>
+                <Stack spacing={3} alignItems="center">
+                  <CheckCircleOutlineIcon color="success" sx={{ fontSize: 50 }} />
+                  <Typography variant="h4" fontWeight={900}>
+                    SCAN GEREGISTREERD
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {status === "idle" && loading ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -230,7 +246,7 @@ export default function PublicScanPage() {
             </Card>
           ) : null}
 
-          {!success && !loading && showPairForm && scanTag ? (
+          {status === "idle" && !loading && showPairForm && scanTag ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Box component="form" onSubmit={pairDevice}>
@@ -274,7 +290,7 @@ export default function PublicScanPage() {
             </Card>
           ) : null}
 
-          {!success && !loading && !showPairForm && error ? (
+          {status === "idle" && !loading && !showPairForm && error ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Alert severity="error">{error}</Alert>
