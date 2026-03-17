@@ -292,14 +292,16 @@ export default function PublicScanPage() {
     >
       <Box sx={{ maxWidth: 720, mx: "auto" }}>
         <Stack spacing={3}>
-          <Box>
-            <Typography variant="h2" fontWeight={900}>
-              Punctoo
-            </Typography>
-            <Typography variant="h5" color="text.secondary">
-              Scan registreren
-            </Typography>
-          </Box>
+          {!needsPairCode ? (
+            <Box>
+              <Typography variant="h2" fontWeight={900}>
+                Punctoo
+              </Typography>
+              <Typography variant="h5" color="text.secondary">
+                Scan registreren
+              </Typography>
+            </Box>
+          ) : null}
 
           {!needsPairCode && !success ? (
             <Card sx={{ borderRadius: 4 }}>
@@ -452,10 +454,12 @@ export default function PublicScanPage() {
             </Card>
           ) : null}
 
-          <Typography variant="h6" color="text.secondary">
-            QR-richting: {direction || "-"}.
-            {direction ? " Je hoeft geen extra keuze te maken." : ""}
-          </Typography>
+          {!needsPairCode ? (
+            <Typography variant="h6" color="text.secondary">
+              QR-richting: {direction || "-"}.
+              {direction ? " Je hoeft geen extra keuze te maken." : ""}
+            </Typography>
+          ) : null}
         </Stack>
       </Box>
     </Box>
