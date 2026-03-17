@@ -76,7 +76,6 @@ function computeWorkedFromEvents(events) {
 
     if (ev.type === "OUT") {
       lastOut = ts;
-
       if (openIn) {
         workedMin += minutesBetween(openIn, ts);
         openIn = null;
@@ -105,16 +104,13 @@ function computeExpectedMinutes(employee, dayStr) {
   if (!mode) return 0;
 
   if (mode === "ROSTER") {
-    if (
-      !Array.isArray(employee.EmployeeRosterDay) ||
-      employee.EmployeeRosterDay.length === 0
-    ) {
+    if (!Array.isArray(employee.rosterDays) || employee.rosterDays.length === 0) {
       return 0;
     }
 
     const weekday = getRosterWeekdayIndex(dayStr);
 
-    const roster = employee.EmployeeRosterDay.find(
+    const roster = employee.rosterDays.find(
       (r) => Number(r.weekday) === weekday
     );
 
@@ -122,14 +118,11 @@ function computeExpectedMinutes(employee, dayStr) {
   }
 
   if (mode === "CALENDAR") {
-    if (
-      !Array.isArray(employee.EmployeeCalendarDay) ||
-      employee.EmployeeCalendarDay.length === 0
-    ) {
+    if (!Array.isArray(employee.calendarDays) || employee.calendarDays.length === 0) {
       return 0;
     }
 
-    const calendar = employee.EmployeeCalendarDay.find((c) => {
+    const calendar = employee.calendarDays.find((c) => {
       const cDay = formatDateOnlyUTC(new Date(c.date));
       return cDay === dayStr;
     });
@@ -190,7 +183,7 @@ export async function GET(req) {
         name: true,
         pairCode: true,
         expectedMode: true,
-        EmployeeRosterDay: {
+        rosterDays: {
           select: {
             weekday: true,
             expectedMinutes: true,
@@ -199,7 +192,7 @@ export async function GET(req) {
             weekday: "asc",
           },
         },
-        EmployeeCalendarDay: {
+        calendarDays: {
           where: {
             date: {
               gte: rangeStart,
@@ -289,9 +282,7 @@ export async function GET(req) {
     rows.sort((a, b) => {
       if (a.day < b.day) return 1;
       if (a.day > b.day) return -1;
-      return String(a.employeeName || "").localeCompare(
-        String(b.employeeName || "")
-      );
+      return String(a.employeeName || "").localeCompare(String(b.employeeName || ""));
     });
 
     return jsonOk({ rows });

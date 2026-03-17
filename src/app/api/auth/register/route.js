@@ -186,13 +186,11 @@ export async function POST(req) {
       await tx.scanTag.createMany({
         data: [
           {
-            id: crypto.randomUUID(),
             companyId: company.id,
             direction: "IN",
             secret: generateSecret(),
           },
           {
-            id: crypto.randomUUID(),
             companyId: company.id,
             direction: "OUT",
             secret: generateSecret(),

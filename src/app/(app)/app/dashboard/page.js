@@ -1,13 +1,10 @@
-import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
-
 import {
   Box,
   Card,
@@ -26,12 +23,6 @@ function formatDate(value) {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
   return `${day}/${month} - ${hours}:${minutes}`;
-}
-
-function formatBalanceMinutes(min) {
-  const rounded = Math.round(Number(min || 0));
-  const sign = rounded > 0 ? "+" : "";
-  return `${sign}${rounded} minuten`;
 }
 
 function groupLatestScanByEmployee(scans) {
@@ -85,46 +76,6 @@ function buildStatusLines(employees, latestScanByEmployee) {
   }
 
   return { working, absent };
-}
-
-async function getBaseUrlFromHeaders() {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") || h.get("host");
-  const proto = h.get("x-forwarded-proto") || "http";
-
-  if (!host) {
-    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  }
-
-  return `${proto}://${host}`;
-}
-
-async function loadTodayAttendanceRows() {
-  const today = new Date().toISOString().slice(0, 10);
-  const baseUrl = await getBaseUrlFromHeaders();
-  const url = new URL("/api/attendance", baseUrl);
-
-  url.searchParams.set("from", today);
-  url.searchParams.set("to", today);
-
-  const cookieStore = await cookies();
-  const cookieHeader = cookieStore
-    .getAll()
-    .map((c) => `${c.name}=${encodeURIComponent(c.value)}`)
-    .join("; ");
-
-  const res = await fetch(url.toString(), {
-    cache: "no-store",
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
-  });
-
-  const data = await res.json();
-
-  if (!res.ok || !data?.ok) {
-    return [];
-  }
-
-  return Array.isArray(data.rows) ? data.rows : [];
 }
 
 function DashboardPanel({
@@ -248,53 +199,6 @@ function DashboardPanel({
   );
 }
 
-function WorkBalanceTile({ name, balanceMinutes }) {
-  const color =
-    balanceMinutes > 0
-      ? "#1f7a45"
-      : balanceMinutes < 0
-      ? "#a33a3a"
-      : "#6b7280";
-
-  return (
-    <Card
-      sx={{
-        height: "100%",
-        borderRadius: "24px",
-        border: "1px solid #e5e7eb",
-        boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
-        backgroundColor: "#ffffff",
-      }}
-    >
-      <CardContent sx={{ p: 3 }}>
-        <Stack spacing={1}>
-          <Typography
-            sx={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              color: "#111827",
-              lineHeight: 1.3,
-            }}
-          >
-            {name}
-          </Typography>
-
-          <Typography
-            sx={{
-              fontSize: "1.45rem",
-              fontWeight: 800,
-              color,
-              lineHeight: 1.2,
-            }}
-          >
-            {formatBalanceMinutes(balanceMinutes)}
-          </Typography>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default async function DashboardPage() {
   const session = await getSession();
 
@@ -327,25 +231,6 @@ export default async function DashboardPage() {
       type: true,
       scannedAt: true,
     },
-  });
-
-  const todayAttendanceRows = await loadTodayAttendanceRows();
-
-  const balances = employees.map((employee) => {
-    const employeeRows = todayAttendanceRows.filter(
-      (row) => row.employeeId === employee.id
-    );
-
-    const balanceMinutes = employeeRows.reduce(
-      (sum, row) => sum + Number(row.deltaMin || 0),
-      0
-    );
-
-    return {
-      employeeId: employee.id,
-      name: employee.name,
-      balanceMinutes,
-    };
   });
 
   const employeesById = new Map(
@@ -440,30 +325,6 @@ export default async function DashboardPage() {
             />
           </Grid>
         </Grid>
-
-        <Box>
-          <Typography
-            sx={{
-              fontSize: "1.35rem",
-              fontWeight: 800,
-              color: "#111827",
-              mb: 2,
-            }}
-          >
-            Work balance
-          </Typography>
-
-          <Grid container spacing={3}>
-            {balances.map((employee) => (
-              <Grid key={employee.employeeId} item xs={12} sm={6} md={4} xl={3}>
-                <WorkBalanceTile
-                  name={employee.name}
-                  balanceMinutes={employee.balanceMinutes}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
       </Stack>
     </Box>
   );
