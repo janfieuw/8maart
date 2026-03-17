@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Alert,
@@ -33,27 +33,35 @@ async function readJson(res) {
   return data;
 }
 
+function isPairingRequiredError(message) {
+  const msg = String(message || "").toLowerCase();
+
+  return (
+    msg.includes("toestel niet gekoppeld") ||
+    msg.includes("werknemer niet gevonden")
+  );
+}
+
 export default function PublicScanPage() {
   const params = useParams();
   const secret = String(params?.secret || "").trim();
 
   const [loading, setLoading] = useState(true);
   const [pairing, setPairing] = useState(false);
-
   const [scanTag, setScanTag] = useState(null);
   const [pairCode, setPairCode] = useState("");
   const [deviceToken, setDeviceToken] = useState("");
-
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [showPairForm, setShowPairForm] = useState(false);
 
-  // Device token ophalen
+  const autoScanTriedRef = useRef(false);
+
   useEffect(() => {
     const token = getOrCreateDeviceToken();
     setDeviceToken(token);
   }, []);
 
-  // QR laden
   useEffect(() => {
     let cancelled = false;
 
@@ -78,7 +86,9 @@ export default function PublicScanPage() {
           setError(e?.message || "QR-code kon niet geladen worden.");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -89,7 +99,49 @@ export default function PublicScanPage() {
     };
   }, [secret]);
 
-  // Koppelen
+  async function runScan(token) {
+    const res = await fetch(`/api/scan/${secret}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        deviceToken: token,
+      }),
+    });
+
+    return readJson(res);
+  }
+
+  useEffect(() => {
+    if (!secret || !deviceToken || loading || !scanTag || autoScanTriedRef.current) {
+      return;
+    }
+
+    autoScanTriedRef.current = true;
+
+    async function tryAutoScan() {
+      try {
+        await runScan(deviceToken);
+        setSuccess(true);
+        setShowPairForm(false);
+        setError("");
+      } catch (e) {
+        const message = e?.message || "";
+
+        if (isPairingRequiredError(message)) {
+          setShowPairForm(true);
+          setError("");
+        } else {
+          setError(message || "Scan mislukt.");
+          setShowPairForm(false);
+        }
+      }
+    }
+
+    tryAutoScan();
+  }, [secret, deviceToken, loading, scanTag]);
+
   async function pairDevice(e) {
     e.preventDefault();
 
@@ -102,7 +154,7 @@ export default function PublicScanPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/device/pair", {
+      const pairRes = await fetch("/api/device/pair", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,11 +166,16 @@ export default function PublicScanPage() {
         }),
       });
 
-      await readJson(res);
+      await readJson(pairRes);
+
+      await runScan(deviceToken);
 
       setSuccess(true);
+      setShowPairForm(false);
+      setError("");
     } catch (e) {
       setError(e?.message || "Koppelen mislukt.");
+      setShowPairForm(true);
     } finally {
       setPairing(false);
     }
@@ -137,7 +194,6 @@ export default function PublicScanPage() {
     >
       <Box sx={{ width: "100%", maxWidth: 420 }}>
         <Stack spacing={3}>
-          {/* ✅ SUCCESS */}
           {success ? (
             <Card
               sx={{
@@ -149,10 +205,7 @@ export default function PublicScanPage() {
             >
               <CardContent sx={{ p: 5 }}>
                 <Stack spacing={3} alignItems="center">
-                  <CheckCircleOutlineIcon
-                    color="success"
-                    sx={{ fontSize: 50 }}
-                  />
+                  <CheckCircleOutlineIcon color="success" sx={{ fontSize: 50 }} />
 
                   <Typography variant="h4" fontWeight={900}>
                     SMARTPHONE SUCCESVOL GEKOPPELD
@@ -166,8 +219,18 @@ export default function PublicScanPage() {
             </Card>
           ) : null}
 
-          {/* ✅ PAIR FORM */}
-          {!success && !loading && scanTag ? (
+          {!success && loading ? (
+            <Card sx={{ borderRadius: 4 }}>
+              <CardContent sx={{ p: 4 }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <CircularProgress size={24} />
+                  <Typography>QR laden...</Typography>
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {!success && !loading && showPairForm && scanTag ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Box component="form" onSubmit={pairDevice}>
@@ -204,23 +267,17 @@ export default function PublicScanPage() {
                       {pairing ? "KOPPELEN..." : "KOPPEL TOESTEL"}
                     </Button>
 
-                    {error ? (
-                      <Alert severity="error">{error}</Alert>
-                    ) : null}
+                    {error ? <Alert severity="error">{error}</Alert> : null}
                   </Stack>
                 </Box>
               </CardContent>
             </Card>
           ) : null}
 
-          {/* LOADING */}
-          {loading ? (
+          {!success && !loading && !showPairForm && error ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <CircularProgress size={24} />
-                  <Typography>QR laden...</Typography>
-                </Stack>
+                <Alert severity="error">{error}</Alert>
               </CardContent>
             </Card>
           ) : null}
