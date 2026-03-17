@@ -1,135 +1,246 @@
-"use client";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
+import DownloadIcon from "@mui/icons-material/Download";
 
-import { useEffect, useState } from "react";
-
-function getDeviceToken() {
-  if (typeof window === "undefined") return "";
-
-  let token = localStorage.getItem("deviceToken");
-
-  if (!token) {
-    token = crypto.randomUUID();
-    localStorage.setItem("deviceToken", token);
-  }
-
-  return token;
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://8maart-production.up.railway.app"
+  );
 }
 
-export default function ScanPage({ params }) {
-  const { secret } = params;
+function scanUrl(secret) {
+  return `${getBaseUrl()}/s/${secret}`;
+}
 
-  const [pairCode, setPairCode] = useState("");
-  const [deviceToken, setDeviceToken] = useState("");
-  const [needsPair, setNeedsPair] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [success, setSuccess] = useState(false);
+function qrImageUrl(secret) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(
+    scanUrl(secret)
+  )}`;
+}
 
-  // 🔥 AUTO SCAN BIJ OPENEN
-  useEffect(() => {
-    const token = getDeviceToken();
-    setDeviceToken(token);
+export default async function ScanTagPage() {
+  const session = await getSession();
 
-    autoScan(token);
-  }, []);
-
-  async function autoScan(token) {
-    try {
-      const res = await fetch(`/api/scan/${secret}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceToken: token,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.ok) {
-        // ✅ toestel al gekoppeld → scan OK
-        setSuccess(true);
-      } else {
-        // 👉 alleen hier pair tonen
-        setNeedsPair(true);
-      }
-    } catch (e) {
-      setNeedsPair(true);
-    } finally {
-      setLoading(false);
-    }
+  if (!session?.companyId) {
+    redirect("/login");
   }
 
-  async function handlePair() {
-    try {
-      const res = await fetch(`/api/device/pair`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          pairCode,
-          deviceToken,
-          secret,
-        }),
-      });
+  const companyId = session.companyId;
 
-      const data = await res.json();
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
 
-      if (data.ok) {
-        // 🔥 NA KOPPELEN → DIRECT SCAN DOEN
-        await autoScan(deviceToken);
-        setNeedsPair(false);
-      } else {
-        alert(data.error || "Koppelen mislukt");
-      }
-    } catch (e) {
-      alert("Server fout");
-    }
-  }
+  const tags = await prisma.scanTag.findMany({
+    where: { companyId },
+    orderBy: { direction: "asc" },
+    select: {
+      id: true,
+      direction: true,
+      secret: true,
+    },
+  });
 
-  // ⏳ loading
-  if (loading) {
-    return (
-      <div className="p-6 text-center">
-        Even laden...
-      </div>
-    );
-  }
+  const inTag = tags.find((tag) => tag.direction === "IN");
+  const outTag = tags.find((tag) => tag.direction === "OUT");
 
-  // ✅ SUCCESS SCREEN (scan gelukt)
-  if (success) {
-    return (
-      <div className="p-6 text-center">
-        <h2 className="text-xl font-bold">
-          Scan geregistreerd
-        </h2>
-      </div>
-    );
-  }
+  return (
+    <Box sx={{ px: 2, py: 2 }}>
+      <Stack spacing={3}>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: "2.4rem",
+              fontWeight: 800,
+              color: "#111827",
+              mb: 1,
+            }}
+          >
+            Scan Tag
+          </Typography>
 
-  // 🔐 PAIR SCREEN
-  if (needsPair) {
-    return (
-      <div className="p-6">
-        <h2 className="text-xl font-bold mb-4">
-          Eerste keer op dit toestel?
-        </h2>
+          <Typography sx={{ color: "#6b7280" }}>
+            Hier kan je de QR-codes van je bedrijf bekijken en downloaden.
+          </Typography>
+        </Box>
 
-        <input
-          className="border p-2 w-full mb-4"
-          placeholder="PairCode"
-          value={pairCode}
-          onChange={(e) => setPairCode(e.target.value)}
-        />
-
-        <button
-          onClick={handlePair}
-          className="bg-green-600 text-white px-4 py-2 rounded w-full"
+        <Card
+          sx={{
+            borderRadius: "16px",
+            border: "1px solid #e5e7eb",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+          }}
         >
-          KOPPEL TOESTEL
-        </button>
-      </div>
-    );
-  }
+          <CardContent
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Box>
+              <Typography sx={{ color: "#6b7280", fontSize: "0.9rem" }}>
+                Bedrijf
+              </Typography>
 
-  return null;
+              <Typography sx={{ fontWeight: 700, fontSize: "1.2rem" }}>
+                {company?.name || "-"}
+              </Typography>
+            </Box>
+
+            {inTag && outTag ? (
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<DownloadIcon />}
+                href="/api/scantag/download"
+              >
+                DOWNLOAD SCAN TAG
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        {!inTag || !outTag ? (
+          <Card
+            sx={{
+              borderRadius: "16px",
+              border: "1px solid #f5d7a1",
+              backgroundColor: "#fff7ed",
+            }}
+          >
+            <CardContent>
+              <Typography sx={{ color: "#9a6700", fontWeight: 600 }}>
+                Er werden geen QR-codes gevonden voor dit bedrijf.
+              </Typography>
+            </CardContent>
+          </Card>
+        ) : (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Card
+                sx={{
+                  borderRadius: "16px",
+                  border: "1px solid #e5e7eb",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+                  height: "100%",
+                }}
+              >
+                <CardContent>
+                  <Stack spacing={2} alignItems="center">
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{ width: "100%" }}
+                    >
+                      <Typography sx={{ fontWeight: 700, fontSize: "1.4rem" }}>
+                        QR IN
+                      </Typography>
+
+                      <Chip
+                        label="IN"
+                        color="success"
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Stack>
+
+                    <img
+                      src={qrImageUrl(inTag.secret)}
+                      width={240}
+                      height={240}
+                      alt="QR IN"
+                      style={{ display: "block" }}
+                    />
+
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<QrCode2Icon />}
+                      href={qrImageUrl(inTag.secret)}
+                      download
+                    >
+                      DOWNLOAD QR
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Card
+                sx={{
+                  borderRadius: "16px",
+                  border: "1px solid #e5e7eb",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+                  height: "100%",
+                }}
+              >
+                <CardContent>
+                  <Stack spacing={2} alignItems="center">
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{ width: "100%" }}
+                    >
+                      <Typography sx={{ fontWeight: 700, fontSize: "1.4rem" }}>
+                        QR OUT
+                      </Typography>
+
+                      <Chip
+                        label="OUT"
+                        color="warning"
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Stack>
+
+                    <img
+                      src={qrImageUrl(outTag.secret)}
+                      width={240}
+                      height={240}
+                      alt="QR OUT"
+                      style={{ display: "block" }}
+                    />
+
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<QrCode2Icon />}
+                      href={qrImageUrl(outTag.secret)}
+                      download
+                    >
+                      DOWNLOAD QR
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+      </Stack>
+    </Box>
+  );
 }
