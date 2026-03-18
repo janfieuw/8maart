@@ -42,6 +42,16 @@ function isPairingRequiredError(message) {
   );
 }
 
+function getSuccessTitle(type) {
+  const normalizedType = String(type || "").trim().toLowerCase();
+
+  if (normalizedType === "out") {
+    return "SCAN OUT GESLAAGD";
+  }
+
+  return "SCAN IN GESLAAGD";
+}
+
 export default function PublicScanPage() {
   const params = useParams();
   const secret = String(params?.secret || "").trim();
@@ -203,7 +213,12 @@ export default function PublicScanPage() {
   }, [loading, scanTag, deviceToken, secret, deviceJustPaired]);
 
   const needsPairCode =
-    !success && !submitting && !pairing && !!error && !deviceJustPaired;
+    !success &&
+    !submitting &&
+    !pairing &&
+    !!error &&
+    !deviceJustPaired &&
+    isPairingRequiredError(error);
 
   return (
     <Box
@@ -263,7 +278,7 @@ export default function PublicScanPage() {
                   />
 
                   <Typography variant="h4" fontWeight={900}>
-                    SCAN GESLAAGD
+                    {getSuccessTitle(success?.type)}
                   </Typography>
                 </Stack>
               </CardContent>
