@@ -1,6 +1,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --punctoo-green: #34a853;
+  --punctoo-green-hover: #2d9449;
+  --punctoo-green-shadow: rgba(52, 168, 83, 0.3);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +36,33 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.reference-times-button {
+  background-color: var(--punctoo-green) !important;
+  color: #ffffff !important;
+  border-radius: 10px !important;
+  text-transform: none !important;
+  font-weight: 700 !important;
+  padding: 6px 14px !important;
+  min-width: 0 !important;
+  box-shadow: 0 2px 8px var(--punctoo-green-shadow) !important;
+}
+
+.reference-times-button:hover {
+  background-color: var(--punctoo-green-hover) !important;
+}
+
+.reference-times-button.Mui-disabled {
+  background-color: #a5d6b2 !important;
+  color: #ffffff !important;
+}
+
+@media (max-width: 900px) {
+  .reference-times-button {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

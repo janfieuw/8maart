@@ -30,7 +30,6 @@ import {
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 function readJsonSafe(text) {
@@ -329,15 +328,16 @@ export default function EmployeesPage() {
                         </TableCell>
 
                         <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Tooltip title="Bewerken">
-                              <IconButton
-                                component={Link}
-                                href={`/app/employees/${row.id}`}
-                              >
-                                <EditOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
+                          <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                            <Button
+                              component={Link}
+                              href={`/app/employees/${row.id}`}
+                              className="reference-times-button"
+                              variant="contained"
+                              size="small"
+                            >
+                              Referentietijden aanpassen
+                            </Button>
 
                             <Tooltip title="Verwijderen">
                               <IconButton
