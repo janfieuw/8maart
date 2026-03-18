@@ -64,7 +64,7 @@ export default function PublicScanPage() {
   const [pairCode, setPairCode] = useState("");
   const [deviceToken, setDeviceToken] = useState("");
 
-  const [success, setSuccess] = useState(null); // null | { pairedOnly?: true } | scan data
+  const [success, setSuccess] = useState(null);
   const [error, setError] = useState("");
   const [deviceJustPaired, setDeviceJustPaired] = useState(false);
 
@@ -204,7 +204,6 @@ export default function PublicScanPage() {
         try {
           await submitScan();
         } catch {
-          // fout wordt al via setError gezet
         }
       }
     }
@@ -219,6 +218,9 @@ export default function PublicScanPage() {
     !!error &&
     !deviceJustPaired &&
     isPairingRequiredError(error);
+
+  const pairingError =
+    error && !isPairingRequiredError(error) ? error : "";
 
   return (
     <Box
@@ -302,7 +304,7 @@ export default function PublicScanPage() {
                 <Box component="form" onSubmit={pairDevice}>
                   <Stack spacing={3}>
                     <Typography variant="h4" fontWeight={800}>
-                      Eerste keer op dit toestel?
+                      Toestel koppelen
                     </Typography>
 
                     <Typography variant="body1" color="text.secondary">
@@ -333,7 +335,9 @@ export default function PublicScanPage() {
                       {pairing ? "KOPPELEN..." : "KOPPEL TOESTEL"}
                     </Button>
 
-                    {error ? <Alert severity="error">{error}</Alert> : null}
+                    {pairingError ? (
+                      <Alert severity="error">{pairingError}</Alert>
+                    ) : null}
                   </Stack>
                 </Box>
               </CardContent>
