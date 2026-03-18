@@ -92,9 +92,7 @@ export default function NewEmployeePage() {
                 Nieuwe werknemer
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Vul de naam in en kies systeem van refertietijden.<br>
-                Kies <b>rooster</b> wanneer er voor elke week een vast regime is.<br>
-                Kies <b>kalender</b> wanneer werkt met een planning die wisselt.
+                Maak een nieuwe werknemer aan
               </Typography>
             </Box>
 
