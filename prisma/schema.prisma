@@ -63,7 +63,7 @@ model Employee {
   id           String                @id @default(cuid())
   companyId    String
   name         String
-  pairCode     String                @unique
+  pairCode     String
   active       Boolean               @default(true)
   createdAt    DateTime              @default(now())
   expectedMode ExpectedMode          @default(ROSTER)
@@ -75,8 +75,10 @@ model Employee {
   rosterDays   EmployeeRosterDay[]
   scanEvents   ScanEvent[]
 
+  @@unique([companyId, pairCode])
   @@index([companyId])
-  @@index([name])
+  @@index([companyId, name])
+  @@index([companyId, active])
 }
 
 model Device {
@@ -143,6 +145,8 @@ model ScanEvent {
   @@index([companyId, scannedAt])
   @@index([employeeId, scannedAt])
   @@index([scanTagId, scannedAt])
+  @@index([companyId, employeeId, scannedAt])
+  @@index([companyId, type, scannedAt])
 }
 
 enum ExpectedMode {

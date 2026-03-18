@@ -32,7 +32,9 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 function fmtDate(value) {
   if (!value) return "-";
   try {
-    return new Date(value).toLocaleDateString();
+    return new Date(value).toLocaleDateString("nl-BE", {
+      timeZone: "Europe/Brussels",
+    });
   } catch {
     return String(value);
   }
@@ -225,11 +227,9 @@ export default function EmployeeDetailPage() {
     try {
       const payload = {
         name,
-        pairCode,
         active,
+        expectedMode: expectedMode || null,
       };
-
-      payload.expectedMode = expectedMode || null;
 
       const res = await fetch(`/api/employees/${id}`, {
         method: "PATCH",
@@ -572,10 +572,13 @@ export default function EmployeeDetailPage() {
                     />
 
                     <TextField
-                      label="PairCode"
+                      label="Koppelcode"
                       value={pairCode}
-                      onChange={(e) => setPairCode(e.target.value)}
                       fullWidth
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                      helperText="Deze koppelcode wordt automatisch gegenereerd en kan niet gewijzigd worden."
                     />
 
                     <FormControl fullWidth>
@@ -877,7 +880,11 @@ export default function EmployeeDetailPage() {
 
             <Typography variant="caption" color="text.secondary">
               {lastRefresh
-                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString()}`
+                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString("nl-BE", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}`
                 : "Nog niet ververst."}
             </Typography>
           </Stack>
