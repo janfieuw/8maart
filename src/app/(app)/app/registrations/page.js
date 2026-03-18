@@ -17,17 +17,24 @@ import {
 } from "@mui/material";
 
 function formatDate(date) {
+  if (!date) return "-";
+
   const d = new Date(date);
 
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
+  if (Number.isNaN(d.getTime())) {
+    return "-";
+  }
 
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const seconds = String(d.getSeconds()).padStart(2, "0");
-
-  return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+  return d.toLocaleString("nl-BE", {
+    timeZone: "Europe/Brussels",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
 
 export default async function RegistrationsPage({ searchParams }) {
@@ -110,27 +117,17 @@ export default async function RegistrationsPage({ searchParams }) {
                 <TableBody>
                   {filtered.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell>
-                        {formatDate(row.scannedAt)}
-                      </TableCell>
+                      <TableCell>{formatDate(row.scannedAt)}</TableCell>
 
-                      <TableCell>
-                        {row.employee?.name || "-"}
-                      </TableCell>
+                      <TableCell>{row.employee?.name || "-"}</TableCell>
 
-                      <TableCell>
-                        {row.employee?.pairCode || "-"}
-                      </TableCell>
+                      <TableCell>{row.employee?.pairCode || "-"}</TableCell>
 
                       <TableCell>
                         <Chip
                           size="small"
                           label={row.type}
-                          color={
-                            row.type === "IN"
-                              ? "success"
-                              : "warning"
-                          }
+                          color={row.type === "IN" ? "success" : "warning"}
                           variant="outlined"
                         />
                       </TableCell>
@@ -139,9 +136,7 @@ export default async function RegistrationsPage({ searchParams }) {
 
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4}>
-                        Geen registraties gevonden
-                      </TableCell>
+                      <TableCell colSpan={4}>Geen registraties gevonden</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
