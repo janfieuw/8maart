@@ -1,63 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
-  FormControl,
-  InputLabel,
   MenuItem,
-  Select,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 
-function generatePairCode() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
+function generatePairCode(length = 6) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
 
-function readJsonSafe(text) {
-  try {
-    return text ? JSON.parse(text) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function readJson(res) {
-  const text = await res.text();
-  const data = readJsonSafe(text);
-
-  if (!res.ok || !data?.ok) {
-    throw new Error(data?.error || text || `HTTP ${res.status}`);
+  for (let i = 0; i < length; i += 1) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
 
-  return data;
+  return result;
 }
 
 export default function NewEmployeePage() {
   const router = useRouter();
 
+  const initialPairCode = useMemo(() => generatePairCode(6), []);
   const [name, setName] = useState("");
-  const [pairCode, setPairCode] = useState(generatePairCode());
-  const [expectedMode, setExpectedMode] = useState("");
+  const [pairCode, setPairCode] = useState(initialPairCode);
+  const [expectedMode, setExpectedMode] = useState("ROSTER");
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
+  const [error, setError] = useState("");
 
   function regeneratePairCode() {
-    setPairCode(generatePairCode());
+    setPairCode(generatePairCode(6));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
-    setErr("");
+    setError("");
 
     try {
       const res = await fetch("/api/employees", {
@@ -66,18 +52,23 @@ export default function NewEmployeePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: String(name || "").trim(),
-          pairCode,
+          name: name.trim(),
+          pairCode: String(pairCode || "").trim().toUpperCase(),
           expectedMode,
         }),
       });
 
-      await readJson(res);
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Werknemer aanmaken mislukt");
+      }
+
       router.push("/app/employees");
-    } catch (e) {
-      setErr(e?.message || "Werknemer aanmaken mislukt.");
-      regeneratePairCode();
-    } finally {
+      router.refresh();
+    } catch (err) {
+      setError(err?.message || "Werknemer aanmaken mislukt");
       setSaving(false);
     }
   }
@@ -96,56 +87,68 @@ export default function NewEmployeePage() {
               </Typography>
             </Box>
 
-            {err ? <Alert severity="error">{err}</Alert> : null}
+            {error ? <Alert severity="error">{error}</Alert> : null}
 
-            <form onSubmit={handleSubmit}>
+            <Box component="form" onSubmit={handleSubmit}>
               <Stack spacing={3}>
                 <TextField
                   label="Naam"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
                   fullWidth
-                  InputLabelProps={{
-                    sx: {
-                      "& .MuiFormLabel-asterisk": {
-                        display: "none",
-                      },
-                    },
-                  }}
+                  required
+                  disabled={saving}
                 />
+
+                <Stack spacing={1}>
+                  <TextField
+                    label="Koppel Code"
+                    value={pairCode}
+                    onChange={(e) =>
+                      setPairCode(
+                        String(e.target.value || "")
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9]/g, "")
+                      )
+                    }
+                    fullWidth
+                    required
+                    disabled={saving}
+                    inputProps={{ maxLength: 6 }}
+                  />
+
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      Deze code wordt automatisch gegenereerd.
+                    </Typography>
+
+                    <Button
+                      type="button"
+                      variant="text"
+                      onClick={regeneratePairCode}
+                      disabled={saving}
+                      sx={{ textTransform: "none", fontWeight: 700, p: 0, minWidth: 0 }}
+                    >
+                      Nieuwe code genereren
+                    </Button>
+                  </Stack>
+                </Stack>
 
                 <TextField
-                  label="Koppel Code"
-                  value={pairCode}
-                  InputProps={{ readOnly: true }}
+                  select
+                  label="Kies tijdensysteem"
+                  value={expectedMode}
+                  onChange={(e) => setExpectedMode(e.target.value)}
                   fullWidth
-                  helperText="Deze code wordt automatisch gegenereerd."
-                />
+                  disabled={saving}
+                >
+                  <MenuItem value="ROSTER">Rooster</MenuItem>
+                  <MenuItem value="CALENDAR">Kalender</MenuItem>
+                </TextField>
 
-                <FormControl fullWidth>
-                  <InputLabel id="expected-mode-label">
-                    Kies tijdensysteem
-                  </InputLabel>
-
-                  <Select
-                    labelId="expected-mode-label"
-                    value={expectedMode}
-                    label="Kies tijdensysteem"
-                    onChange={(e) => setExpectedMode(e.target.value)}
-                  >
-                    <MenuItem value="">
-                      <em>Geen keuze</em>
-                    </MenuItem>
-
-                    <MenuItem value="ROSTER">ROOSTER</MenuItem>
-                    <MenuItem value="CALENDAR">KALENDER</MenuItem>
-                  </Select>
-                </FormControl>
-
-                <Stack direction="row" spacing={2}>
+                <Stack direction="row" spacing={2} alignItems="center">
                   <Button type="submit" variant="contained" disabled={saving}>
-                    {saving ? "Opslaan..." : "Werknemer aanmaken"}
+                    {saving ? "Bezig..." : "Werknemer aanmaken"}
                   </Button>
 
                   <Button
@@ -153,12 +156,13 @@ export default function NewEmployeePage() {
                     href="/app/employees"
                     variant="text"
                     disabled={saving}
+                    sx={{ textTransform: "none" }}
                   >
                     Annuleren
                   </Button>
                 </Stack>
               </Stack>
-            </form>
+            </Box>
           </Stack>
         </CardContent>
       </Card>

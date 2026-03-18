@@ -16,6 +16,40 @@ function jsonError(error, status = 400) {
   );
 }
 
+// 🔥 GENERATOR (zonder verwarrende karakters)
+function generatePairCode(length = 6) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+
+  for (let i = 0; i < length; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  return result;
+}
+
+// 🔒 Zorg dat code uniek is binnen bedrijf
+async function generateUniquePairCode(companyId) {
+  let code;
+  let exists = true;
+
+  while (exists) {
+    code = generatePairCode(6);
+
+    const found = await prisma.employee.findFirst({
+      where: {
+        companyId,
+        pairCode: code,
+      },
+      select: { id: true },
+    });
+
+    exists = !!found;
+  }
+
+  return code;
+}
+
 export async function GET() {
   try {
     const companyId = await getDemoCompanyId();
@@ -46,7 +80,7 @@ export async function POST(req) {
     const body = await req.json();
 
     const name = String(body?.name || "").trim();
-    const pairCode = String(body?.pairCode || "").trim();
+    let pairCode = String(body?.pairCode || "").trim().toUpperCase();
 
     let expectedMode = body?.expectedMode ?? null;
 
@@ -64,8 +98,17 @@ export async function POST(req) {
       return jsonError("Naam is verplicht", 400);
     }
 
+    // 🔥 ALS GEEN CODE → AUTOMATISCH GENEREREN
     if (!pairCode) {
-      return jsonError("PairCode is verplicht", 400);
+      pairCode = await generateUniquePairCode(companyId);
+    }
+
+    // 🔒 VALIDATIE
+    if (!/^[A-Z0-9]+$/.test(pairCode)) {
+      return jsonError(
+        "PairCode mag enkel hoofdletters en cijfers bevatten",
+        400
+      );
     }
 
     const employee = await prisma.employee.create({
@@ -82,8 +125,9 @@ export async function POST(req) {
   } catch (error) {
     console.error("POST /api/employees error:", error);
 
+    // 🔥 fallback bij race condition
     if (error?.code === "P2002") {
-      return jsonError("PairCode bestaat al", 409);
+      return jsonError("PairCode bestaat al, probeer opnieuw", 409);
     }
 
     return jsonError("Failed to create employee", 500);
