@@ -16,38 +16,46 @@ function jsonError(error, status = 400) {
   );
 }
 
-// 🔥 GENERATOR (zonder verwarrende karakters)
-function generatePairCode(length = 6) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const PAIR_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const PAIR_CODE_LENGTH = 6;
+const PAIR_CODE_REGEX = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/;
+
+function normalizePairCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function generatePairCode(length = PAIR_CODE_LENGTH) {
   let result = "";
 
-  for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < length; i += 1) {
+    result += PAIR_CODE_CHARS.charAt(
+      Math.floor(Math.random() * PAIR_CODE_CHARS.length)
+    );
   }
 
   return result;
 }
 
-// 🔒 Zorg dat code uniek is binnen bedrijf
 async function generateUniquePairCode(companyId) {
-  let code;
-  let exists = true;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const code = generatePairCode();
 
-  while (exists) {
-    code = generatePairCode(6);
-
-    const found = await prisma.employee.findFirst({
+    const existing = await prisma.employee.findFirst({
       where: {
         companyId,
         pairCode: code,
       },
-      select: { id: true },
+      select: {
+        id: true,
+      },
     });
 
-    exists = !!found;
+    if (!existing) {
+      return code;
+    }
   }
 
-  return code;
+  throw new Error("Kon geen unieke PairCode genereren");
 }
 
 export async function GET() {
@@ -77,15 +85,15 @@ export async function GET() {
 export async function POST(req) {
   try {
     const companyId = await getDemoCompanyId();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const name = String(body?.name || "").trim();
-    let pairCode = String(body?.pairCode || "").trim().toUpperCase();
+    let pairCode = normalizePairCode(body?.pairCode);
 
     let expectedMode = body?.expectedMode ?? null;
 
     if (expectedMode != null && expectedMode !== "") {
-      expectedMode = String(expectedMode).toUpperCase();
+      expectedMode = String(expectedMode).trim().toUpperCase();
 
       if (!["ROSTER", "CALENDAR"].includes(expectedMode)) {
         return jsonError("Invalid expectedMode", 400);
@@ -98,17 +106,29 @@ export async function POST(req) {
       return jsonError("Naam is verplicht", 400);
     }
 
-    // 🔥 ALS GEEN CODE → AUTOMATISCH GENEREREN
     if (!pairCode) {
       pairCode = await generateUniquePairCode(companyId);
     }
 
-    // 🔒 VALIDATIE
-    if (!/^[A-Z0-9]+$/.test(pairCode)) {
+    if (!PAIR_CODE_REGEX.test(pairCode)) {
       return jsonError(
-        "PairCode mag enkel hoofdletters en cijfers bevatten",
+        "PairCode moet 6 tekens bevatten en mag enkel veilige hoofdletters en cijfers bevatten",
         400
       );
+    }
+
+    const existingEmployee = await prisma.employee.findFirst({
+      where: {
+        companyId,
+        pairCode,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingEmployee) {
+      return jsonError("PairCode bestaat al", 409);
     }
 
     const employee = await prisma.employee.create({
@@ -119,15 +139,23 @@ export async function POST(req) {
         expectedMode,
         active: true,
       },
+      select: {
+        id: true,
+        companyId: true,
+        name: true,
+        pairCode: true,
+        expectedMode: true,
+        active: true,
+        createdAt: true,
+      },
     });
 
     return jsonOk({ employee }, 201);
   } catch (error) {
     console.error("POST /api/employees error:", error);
 
-    // 🔥 fallback bij race condition
     if (error?.code === "P2002") {
-      return jsonError("PairCode bestaat al, probeer opnieuw", 409);
+      return jsonError("PairCode bestaat al", 409);
     }
 
     return jsonError("Failed to create employee", 500);
