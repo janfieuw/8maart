@@ -16,6 +16,9 @@ import {
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { getOrCreateDeviceToken } from "@/lib/device-token";
 
+const SCAN_LOCK_KEY = "punctoo_scan_lock";
+const SCAN_COOLDOWN_MS = 5000;
+
 async function readJson(res) {
   const text = await res.text();
   let data = null;
@@ -50,6 +53,22 @@ function getSuccessTitle(type) {
   }
 
   return "SCAN IN GESLAAGD";
+}
+
+function canScanNow() {
+  try {
+    const last = Number(localStorage.getItem(SCAN_LOCK_KEY) || 0);
+    const now = Date.now();
+    return now - last > SCAN_COOLDOWN_MS;
+  } catch {
+    return true;
+  }
+}
+
+function setScanLock() {
+  try {
+    localStorage.setItem(SCAN_LOCK_KEY, String(Date.now()));
+  } catch {}
 }
 
 export default function PublicScanPage() {
@@ -122,6 +141,12 @@ export default function PublicScanPage() {
     if (!secret || !deviceToken) {
       throw new Error("Secret of device token ontbreekt.");
     }
+
+    if (!canScanNow()) {
+      return;
+    }
+
+    setScanLock();
 
     setSubmitting(true);
     setError("");
@@ -203,8 +228,7 @@ export default function PublicScanPage() {
 
         try {
           await submitScan();
-        } catch {
-        }
+        } catch {}
       }
     }
 
