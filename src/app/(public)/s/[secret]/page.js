@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Alert,
@@ -68,6 +68,8 @@ export default function PublicScanPage() {
   const [error, setError] = useState("");
   const [deviceJustPaired, setDeviceJustPaired] = useState(false);
 
+  const autoTriedRef = useRef(false);
+
   useEffect(() => {
     const token = getOrCreateDeviceToken();
     setDeviceToken(token);
@@ -86,7 +88,6 @@ export default function PublicScanPage() {
       setError("");
       setSuccess(null);
       setScanTag(null);
-      setDeviceJustPaired(false);
 
       try {
         const res = await fetch(`/api/public/tags/${secret}`, {
@@ -118,13 +119,14 @@ export default function PublicScanPage() {
   }, [secret]);
 
   async function submitScan() {
-    if (!secret || !deviceToken || submitting || pairing) {
-      return;
+    if (!secret || !deviceToken) {
+      throw new Error("Secret of device token ontbreekt.");
     }
 
     setSubmitting(true);
     setError("");
     setSuccess(null);
+    setDeviceJustPaired(false);
 
     try {
       const res = await fetch(`/api/scan/${secret}`, {
@@ -135,7 +137,6 @@ export default function PublicScanPage() {
 
       const data = await readJson(res);
       setSuccess(data);
-      setDeviceJustPaired(false);
       return data;
     } catch (e) {
       setError(e?.message || "Scan registreren mislukt.");
@@ -148,7 +149,7 @@ export default function PublicScanPage() {
   async function pairDevice(e) {
     e?.preventDefault?.();
 
-    if (!secret || !deviceToken || pairing || submitting) {
+    if (!secret || !deviceToken) {
       setError("Secret of device token ontbreekt.");
       return;
     }
@@ -176,7 +177,6 @@ export default function PublicScanPage() {
 
       await readJson(pairRes);
 
-      setPairCode("");
       setDeviceJustPaired(true);
       setError("");
       setSuccess({
@@ -189,22 +189,38 @@ export default function PublicScanPage() {
     }
   }
 
+  useEffect(() => {
+    async function tryAutoScan() {
+      if (
+        !loading &&
+        scanTag &&
+        deviceToken &&
+        secret &&
+        !autoTriedRef.current &&
+        !deviceJustPaired
+      ) {
+        autoTriedRef.current = true;
+
+        try {
+          await submitScan();
+        } catch {
+        }
+      }
+    }
+
+    tryAutoScan();
+  }, [loading, scanTag, deviceToken, secret, deviceJustPaired]);
+
   const needsPairCode =
     !success &&
     !submitting &&
     !pairing &&
     !!error &&
+    !deviceJustPaired &&
     isPairingRequiredError(error);
 
   const pairingError =
     error && !isPairingRequiredError(error) ? error : "";
-
-  const canScan =
-    !loading &&
-    !!scanTag &&
-    !!deviceToken &&
-    !submitting &&
-    !pairing;
 
   return (
     <Box
@@ -240,24 +256,8 @@ export default function PublicScanPage() {
                   </Typography>
 
                   <Typography variant="h6" color="text.secondary">
-                    Je toestel is gekoppeld. Druk nu op SCAN NU.
+                    Scan nu opnieuw de QR-code
                   </Typography>
-
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={submitScan}
-                    disabled={!canScan}
-                    sx={{
-                      py: 2,
-                      px: 4,
-                      fontSize: 20,
-                      fontWeight: 800,
-                      borderRadius: 999,
-                    }}
-                  >
-                    {submitting ? "SCANNEN..." : "SCAN NU"}
-                  </Button>
                 </Stack>
               </CardContent>
             </Card>
@@ -282,10 +282,6 @@ export default function PublicScanPage() {
                   <Typography variant="h4" fontWeight={900}>
                     {getSuccessTitle(success?.type)}
                   </Typography>
-
-                  <Typography variant="body1" color="text.secondary">
-                    Registratie succesvol verwerkt.
-                  </Typography>
                 </Stack>
               </CardContent>
             </Card>
@@ -302,38 +298,6 @@ export default function PublicScanPage() {
             </Card>
           ) : null}
 
-          {!loading && !success && !needsPairCode && !error ? (
-            <Card sx={{ borderRadius: 4 }}>
-              <CardContent sx={{ p: 4 }}>
-                <Stack spacing={3} alignItems="center">
-                  <Typography variant="h4" fontWeight={800} textAlign="center">
-                    Klaar om te scannen
-                  </Typography>
-
-                  <Typography variant="body1" color="text.secondary" textAlign="center">
-                    Druk op de knop hieronder om je scan te registreren.
-                  </Typography>
-
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={submitScan}
-                    disabled={!canScan}
-                    sx={{
-                      py: 2,
-                      px: 4,
-                      fontSize: 20,
-                      fontWeight: 800,
-                      borderRadius: 999,
-                    }}
-                  >
-                    {submitting ? "SCANNEN..." : "SCAN NU"}
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          ) : null}
-
           {needsPairCode ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
@@ -344,15 +308,13 @@ export default function PublicScanPage() {
                     </Typography>
 
                     <Typography variant="body1" color="text.secondary">
-                      Voer je koppelcode één keer in om dit toestel te koppelen.
+                      Voer je PairCode één keer in om dit toestel te koppelen.
                     </Typography>
 
                     <TextField
-                      label="Koppelcode"
+                      label="PairCode"
                       value={pairCode}
-                      onChange={(e) =>
-                        setPairCode(String(e.target.value || "").toUpperCase())
-                      }
+                      onChange={(e) => setPairCode(e.target.value)}
                       fullWidth
                       autoComplete="off"
                       disabled={loading || submitting || pairing || !scanTag}
@@ -398,26 +360,7 @@ export default function PublicScanPage() {
           {!success && !loading && !needsPairCode && error ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
-                <Stack spacing={2}>
-                  <Alert severity="error">{error}</Alert>
-
-                  {scanTag ? (
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={submitScan}
-                      disabled={!canScan}
-                      sx={{
-                        py: 2,
-                        fontSize: 18,
-                        fontWeight: 800,
-                        borderRadius: 999,
-                      }}
-                    >
-                      {submitting ? "OPNIEUW PROBEREN..." : "PROBEER OPNIEUW"}
-                    </Button>
-                  ) : null}
-                </Stack>
+                <Alert severity="error">{error}</Alert>
               </CardContent>
             </Card>
           ) : null}
