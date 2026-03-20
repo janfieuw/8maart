@@ -65,10 +65,14 @@ export default function NewEmployeePage() {
                 Nieuwe werknemer
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Maak een nieuwe werknemer aan en kies systeem voor de referentietijden.
-Kies rooster wanneer er een vast patroon is in de werkdagen.
-Kies kalender wanneer de werkdagen wisselend zijn.
-              </Typography>
+  Maak een nieuwe werknemer aan en kies systeem voor de referentietijden.
+</Typography>
+<Typography variant="body2" color="text.secondary">
+  Kies rooster wanneer er een vast patroon is in de werkdagen.
+</Typography>
+<Typography variant="body2" color="text.secondary">
+  Kies kalender wanneer de werkdagen wisselend zijn.
+</Typography>
             </Box>
 
             {error ? <Alert severity="error">{error}</Alert> : null}
