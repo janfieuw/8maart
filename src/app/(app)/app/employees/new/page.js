@@ -66,8 +66,8 @@ export default function NewEmployeePage() {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Maak een nieuwe werknemer aan en kies systeem voor de referentietijden.
-<br>Kies rooster wanneer er een vast patroon is in de werkdagen.
-<br>Kies kalender wanneer de werkdagen wisselend zijn.
+Kies rooster wanneer er een vast patroon is in de werkdagen.
+Kies kalender wanneer de werkdagen wisselend zijn.
               </Typography>
             </Box>
 
