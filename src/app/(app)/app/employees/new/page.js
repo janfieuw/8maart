@@ -19,7 +19,6 @@ export default function NewEmployeePage() {
   const router = useRouter();
 
   const [name, setName] = useState("");
-  const [pairCode] = useState("WORDT AUTOMATISCH GEGENEREERD");
   const [expectedMode, setExpectedMode] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -66,7 +65,9 @@ export default function NewEmployeePage() {
                 Nieuwe werknemer
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Maak een nieuwe werknemer aan
+                Maak een nieuwe werknemer aan en kies systeem voor de referentietijden.
+<br>Kies rooster wanneer er een vast patroon is in de werkdagen.
+<br>Kies kalender wanneer de werkdagen wisselend zijn.
               </Typography>
             </Box>
 
@@ -82,29 +83,6 @@ export default function NewEmployeePage() {
                   required
                   disabled={saving}
                 />
-
-                {/* Koppelcode als vaste tekst */}
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Koppelcode
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 700,
-                      letterSpacing: 2,
-                      background: "#f5f5f5",
-                      padding: "10px",
-                      borderRadius: "8px",
-                      textAlign: "center",
-                    }}
-                  >
-                    {pairCode}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Deze code wordt automatisch gegenereerd.
-                  </Typography>
-                </Box>
 
                 <TextField
                   select
