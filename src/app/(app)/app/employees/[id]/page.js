@@ -86,6 +86,12 @@ function minutesToHoursLabel(minutes) {
   return `${hours} u`;
 }
 
+function expectedModeLabel(value) {
+  if (value === "ROSTER") return "Rooster";
+  if (value === "CALENDAR") return "Kalender";
+  return "Geen tijdensysteem";
+}
+
 async function readJson(res) {
   const text = await res.text();
   let data = null;
@@ -308,10 +314,10 @@ export default function EmployeeDetailPage() {
       });
 
       await readJson(res);
-      setInfo("Roster opgeslagen.");
+      setInfo("Rooster opgeslagen.");
       await loadEmployee();
     } catch (e) {
-      setErr(e?.message || "Roster opslaan mislukt.");
+      setErr(e?.message || "Rooster opslaan mislukt.");
     } finally {
       setSavingRoster(false);
     }
@@ -509,7 +515,7 @@ export default function EmployeeDetailPage() {
                     Werknemer detail
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Profiel + planning ({expectedMode || "geen expected mode"})
+                    Profiel + planning ({expectedModeLabel(expectedMode)})
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Employee ID: {id || "-"}
@@ -522,8 +528,8 @@ export default function EmployeeDetailPage() {
 
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
               <Tab label="PROFIEL" />
-              <Tab label="ROSTER" />
-              <Tab label="CALENDAR" />
+              <Tab label="ROOSTER" />
+              <Tab label="KALENDER" />
             </Tabs>
 
             {err ? <Alert severity="error">{err}</Alert> : null}
@@ -548,18 +554,18 @@ export default function EmployeeDetailPage() {
                     />
 
                     <FormControl fullWidth>
-                      <InputLabel id="expected-mode-label">Expected mode</InputLabel>
+                      <InputLabel id="expected-mode-label">Tijdensysteem</InputLabel>
                       <Select
                         labelId="expected-mode-label"
                         value={expectedMode}
-                        label="Expected mode"
+                        label="Tijdensysteem"
                         onChange={(e) => setExpectedMode(e.target.value)}
                       >
                         <MenuItem value="">
                           <em>Geen</em>
                         </MenuItem>
-                        <MenuItem value="ROSTER">ROSTER</MenuItem>
-                        <MenuItem value="CALENDAR">CALENDAR</MenuItem>
+                        <MenuItem value="ROSTER">Rooster</MenuItem>
+                        <MenuItem value="CALENDAR">Kalender</MenuItem>
                       </Select>
                     </FormControl>
 
@@ -576,7 +582,7 @@ export default function EmployeeDetailPage() {
                 {tab === 1 ? (
                   <Stack spacing={3}>
                     <Typography variant="h6" fontWeight={700}>
-                      Roster per weekdag
+                      Rooster per weekdag
                     </Typography>
 
                     {rosterDays.map((row) => (
@@ -617,7 +623,7 @@ export default function EmployeeDetailPage() {
                       onClick={saveRoster}
                       disabled={savingRoster}
                     >
-                      {savingRoster ? "Opslaan..." : "Roster opslaan"}
+                      {savingRoster ? "Opslaan..." : "Rooster opslaan"}
                     </Button>
                   </Stack>
                 ) : null}
