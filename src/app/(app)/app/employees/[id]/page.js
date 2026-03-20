@@ -12,22 +12,19 @@ import {
   CircularProgress,
   Divider,
   FormControl,
-  FormControlLabel,
   InputLabel,
   MenuItem,
   Radio,
   RadioGroup,
   Select,
   Stack,
-  Switch,
   Tab,
   Tabs,
   TextField,
   Typography,
+  FormControlLabel,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import RefreshIcon from "@mui/icons-material/Refresh";
 
 function fmtDate(value) {
   if (!value) return "-";
@@ -519,27 +516,6 @@ export default function EmployeeDetailPage() {
                   </Typography>
                 </Box>
               </Stack>
-
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="contained"
-                  startIcon={<RefreshIcon />}
-                  onClick={loadEmployee}
-                  disabled={loading}
-                >
-                  Verversen
-                </Button>
-
-                <Button
-                  color="error"
-                  variant="outlined"
-                  startIcon={<DeleteOutlineIcon />}
-                  onClick={deleteEmployee}
-                  disabled={deleting}
-                >
-                  {deleting ? "Verwijderen..." : "Verwijderen"}
-                </Button>
-              </Stack>
             </Stack>
 
             <Divider />
@@ -571,16 +547,6 @@ export default function EmployeeDetailPage() {
                       fullWidth
                     />
 
-                    <TextField
-                      label="Koppelcode"
-                      value={pairCode}
-                      fullWidth
-                      InputProps={{
-                        readOnly: true,
-                      }}
-                      helperText="Deze koppelcode wordt automatisch gegenereerd en kan niet gewijzigd worden."
-                    />
-
                     <FormControl fullWidth>
                       <InputLabel id="expected-mode-label">Expected mode</InputLabel>
                       <Select
@@ -596,16 +562,6 @@ export default function EmployeeDetailPage() {
                         <MenuItem value="CALENDAR">CALENDAR</MenuItem>
                       </Select>
                     </FormControl>
-
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={active}
-                          onChange={(e) => setActive(e.target.checked)}
-                        />
-                      }
-                      label="Actief"
-                    />
 
                     <Button
                       variant="contained"
@@ -877,16 +833,6 @@ export default function EmployeeDetailPage() {
                 ) : null}
               </>
             )}
-
-            <Typography variant="caption" color="text.secondary">
-              {lastRefresh
-                ? `Laatst ververst om ${lastRefresh.toLocaleTimeString("nl-BE", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  })}`
-                : "Nog niet ververst."}
-            </Typography>
           </Stack>
         </CardContent>
       </Card>
