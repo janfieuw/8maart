@@ -7,40 +7,40 @@ datasource db {
 }
 
 model Company {
-  id                    String             @id @default(cuid())
-  name                  String
-  slug                  String             @unique
-  vatNumber             String?
-  phone                 String?
+  id                  String             @id @default(cuid())
+  name                String
+  slug                String             @unique
+  vatNumber           String?
+  phone               String?
 
-  billingStreet         String?
-  billingHouseNumber    String?
-  billingPostalCode     String?
-  billingCity           String?
-  billingCountry        String?
+  billingStreet       String?
+  billingHouseNumber  String?
+  billingPostalCode   String?
+  billingCity         String?
+  billingCountry      String?
 
-  shippingStreet        String?
-  shippingHouseNumber   String?
-  shippingPostalCode    String?
-  shippingCity          String?
-  shippingCountry       String?
+  shippingStreet      String?
+  shippingHouseNumber String?
+  shippingPostalCode  String?
+  shippingCity        String?
+  shippingCountry     String?
 
-  contactEmail          String?
-  subscriptionNumber    String?            @unique
-  subscriptionStatus    SubscriptionStatus @default(TRIAL)
-  trialStartsAt         DateTime?
-  trialEndsAt           DateTime?
-  activatedAt           DateTime?
-  nextRenewalAt         DateTime?
-  deactivatedAt         DateTime?
+  contactEmail        String?
+  subscriptionNumber  String?            @unique
+  subscriptionStatus  SubscriptionStatus @default(TRIAL)
+  trialStartsAt       DateTime?
+  trialEndsAt         DateTime?
+  activatedAt         DateTime?
+  nextRenewalAt       DateTime?
+  deactivatedAt       DateTime?
 
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
-  users                 User[]
-  employees             Employee[]
-  scanTags              ScanTag[]
-  scanEvents            ScanEvent[]
+  users               User[]
+  employees           Employee[]
+  scanTags            ScanTag[]
+  scanEvents          ScanEvent[]
 
   @@index([name])
   @@index([subscriptionStatus])
@@ -60,16 +60,15 @@ model User {
 }
 
 model Employee {
-  id           String                @id @default(cuid())
+  id           String          @id @default(cuid())
   companyId    String
   name         String
   pairCode     String
-  active       Boolean               @default(true)
-  createdAt    DateTime              @default(now())
-  expectedMode ExpectedMode          @default(ROSTER)
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  expectedMode ExpectedMode    @default(ROSTER)
 
-  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
+  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   devices      Device[]
   calendarDays EmployeeCalendarDay[]
   rosterDays   EmployeeRosterDay[]
