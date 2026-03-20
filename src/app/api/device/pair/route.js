@@ -65,6 +65,19 @@ export async function POST(req) {
       return jsonError("Ongeldige PairCode", 404);
     }
 
+    const existingDevice = await prisma.device.findUnique({
+      where: { deviceToken },
+      include: {
+        employee: true,
+      },
+    });
+
+    if (existingDevice && existingDevice.employee.companyId !== companyId) {
+      await prisma.device.delete({
+        where: { deviceToken },
+      });
+    }
+
     const device = await prisma.device.upsert({
       where: { deviceToken },
       update: {

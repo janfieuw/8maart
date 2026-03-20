@@ -241,8 +241,13 @@ export async function POST(request, context) {
     let employee = null;
 
     if (deviceToken) {
-      const device = await prisma.device.findUnique({
-        where: { deviceToken },
+      const device = await prisma.device.findFirst({
+        where: {
+          deviceToken,
+          employee: {
+            companyId,
+          },
+        },
         include: {
           employee: true,
         },
