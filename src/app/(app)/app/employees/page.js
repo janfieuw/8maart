@@ -208,7 +208,7 @@ export default function EmployeesPage() {
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary">
-                  Beheer werknemers en tijdensysteem
+                  Beheer werknemers en hun referentietijden
                 </Typography>
               </Box>
 

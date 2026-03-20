@@ -18,6 +18,8 @@ import {
   Typography,
 } from "@mui/material";
 
+const SHOW_TOTALS = false;
+
 function formatDateInput(date) {
   const d = new Date(date);
   const year = d.getFullYear();
@@ -246,35 +248,37 @@ export default async function AttendancePage({ searchParams }) {
                 </TableBody>
               </Table>
 
-              <Card
-                variant="outlined"
-                sx={{
-                  borderRadius: "14px",
-                  borderColor: "#e5e7eb",
-                }}
-              >
-                <CardContent sx={{ py: 2 }}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={4}>
-                      <Typography sx={{ fontWeight: 700 }}>
-                        Totaal expected: {formatMinutes(totalExpectedMinutes)}
-                      </Typography>
-                    </Grid>
+              {SHOW_TOTALS && (
+                <Card
+                  variant="outlined"
+                  sx={{
+                    borderRadius: "14px",
+                    borderColor: "#e5e7eb",
+                  }}
+                >
+                  <CardContent sx={{ py: 2 }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Totaal expected: {formatMinutes(totalExpectedMinutes)}
+                        </Typography>
+                      </Grid>
 
-                    <Grid item xs={12} md={4}>
-                      <Typography sx={{ fontWeight: 700 }}>
-                        Totaal attendance: {formatMinutes(totalAttendanceMinutes)}
-                      </Typography>
-                    </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Totaal attendance: {formatMinutes(totalAttendanceMinutes)}
+                        </Typography>
+                      </Grid>
 
-                    <Grid item xs={12} md={4}>
-                      <Typography sx={{ fontWeight: 700 }}>
-                        Totaal verschil: {formatMinutes(totalDifferenceMinutes)}
-                      </Typography>
+                      <Grid item xs={12} md={4}>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Totaal verschil: {formatMinutes(totalDifferenceMinutes)}
+                        </Typography>
+                      </Grid>
                     </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </Stack>
           </CardContent>
         </Card>
