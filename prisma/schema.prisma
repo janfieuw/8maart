@@ -41,6 +41,7 @@ model Company {
   employees           Employee[]
   scanTags            ScanTag[]
   scanEvents          ScanEvent[]
+  attendanceDays      AttendanceDay[]
 
   @@index([name])
   @@index([subscriptionStatus])
@@ -60,19 +61,20 @@ model User {
 }
 
 model Employee {
-  id           String          @id @default(cuid())
-  companyId    String
-  name         String
-  pairCode     String
-  active       Boolean         @default(true)
-  createdAt    DateTime        @default(now())
-  expectedMode ExpectedMode    @default(ROSTER)
+  id             String                @id @default(cuid())
+  companyId      String
+  name           String
+  pairCode       String
+  active         Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  expectedMode   ExpectedMode          @default(ROSTER)
 
-  company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  devices      Device[]
-  calendarDays EmployeeCalendarDay[]
-  rosterDays   EmployeeRosterDay[]
-  scanEvents   ScanEvent[]
+  company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  devices        Device[]
+  calendarDays   EmployeeCalendarDay[]
+  rosterDays     EmployeeRosterDay[]
+  scanEvents     ScanEvent[]
+  attendanceDays AttendanceDay[]
 
   @@unique([companyId, pairCode])
   @@index([companyId])
@@ -146,6 +148,30 @@ model ScanEvent {
   @@index([scanTagId, scannedAt])
   @@index([companyId, employeeId, scannedAt])
   @@index([companyId, type, scannedAt])
+}
+
+model AttendanceDay {
+  id           String   @id @default(cuid())
+  companyId    String
+  employeeId   String
+  day          DateTime @db.Date
+
+  expectedMin  Int      @default(0)
+  workedMin    Int      @default(0)
+  deltaMin     Int      @default(0)
+
+  firstIn      DateTime?
+  lastOut      DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, day])
+  @@index([companyId, day])
+  @@index([employeeId, day])
 }
 
 enum ExpectedMode {
