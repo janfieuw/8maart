@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Alert,
@@ -8,41 +9,98 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
+  CircularProgress,
+  Divider,
   FormControl,
-  IconButton,
   InputLabel,
   MenuItem,
-  Paper,
+  Radio,
+  RadioGroup,
   Select,
   Stack,
-  Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  Tab,
+  Tabs,
   TextField,
-  Tooltip,
   Typography,
+  FormControlLabel,
 } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
-import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-
-function readJsonSafe(text) {
+function fmtDate(value) {
+  if (!value) return "-";
   try {
-    return text ? JSON.parse(text) : null;
+    return new Date(value).toLocaleDateString("nl-BE", {
+      timeZone: "Europe/Brussels",
+    });
   } catch {
-    return null;
+    return String(value);
   }
+}
+
+function toIsoDateString(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRange(from, to) {
+  if (!from || !to) return [];
+
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+  if (start.getTime() > end.getTime()) return [];
+
+  const result = [];
+  const current = new Date(start);
+
+  while (current.getTime() <= end.getTime()) {
+    result.push(toIsoDateString(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
+}
+
+function weekdayLabel(weekday) {
+  const map = {
+    1: "Maandag",
+    2: "Dinsdag",
+    3: "Woensdag",
+    4: "Donderdag",
+    5: "Vrijdag",
+    6: "Zaterdag",
+    7: "Zondag",
+  };
+  return map[weekday] || String(weekday);
+}
+
+function minutesToHoursLabel(minutes) {
+  if (minutes === "" || minutes == null) return "-";
+  const value = Number(minutes);
+  if (Number.isNaN(value)) return "-";
+  const hours = value / 60;
+  return `${hours} u`;
+}
+
+function expectedModeLabel(value) {
+  if (value === "ROSTER") return "Rooster";
+  if (value === "CALENDAR") return "Kalender";
+  return "Geen tijdensysteem";
 }
 
 async function readJson(res) {
   const text = await res.text();
-  const data = readJsonSafe(text);
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
 
   if (!res.ok || !data?.ok) {
     throw new Error(data?.error || text || `HTTP ${res.status}`);
@@ -51,310 +109,736 @@ async function readJson(res) {
   return data;
 }
 
-function expectedModeChip(mode) {
-  const value = String(mode || "").toUpperCase();
+export default function EmployeeDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
 
-  const label =
-    value === "ROSTER"
-      ? "ROOSTER"
-      : value === "CALENDAR"
-      ? "KALENDER"
-      : value || "-";
+  const [tab, setTab] = useState(0);
 
-  const color =
-    value === "ROSTER"
-      ? "info"
-      : value === "CALENDAR"
-      ? "secondary"
-      : "default";
-
-  return <Chip size="small" label={label} color={color} variant="outlined" />;
-}
-
-export default function EmployeesPage() {
-  const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingRoster, setSavingRoster] = useState(false);
+  const [savingCalendar, setSavingCalendar] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const [employee, setEmployee] = useState(null);
+  const [rosterDays, setRosterDays] = useState([]);
+  const [calendarDays, setCalendarDays] = useState([]);
+
+  const [name, setName] = useState("");
+  const [pairCode, setPairCode] = useState("");
+  const [expectedMode, setExpectedMode] = useState("");
+  const [active, setActive] = useState(true);
+
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
+  const [lastRefresh, setLastRefresh] = useState(null);
 
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [calendarMode, setCalendarMode] = useState("single");
+  const [calendarDate, setCalendarDate] = useState("");
+  const [calendarMinutes, setCalendarMinutes] = useState("");
 
-  async function loadEmployees() {
+  const [calendarFrom, setCalendarFrom] = useState("");
+  const [calendarTo, setCalendarTo] = useState("");
+  const [calendarRangeDefaultMinutes, setCalendarRangeDefaultMinutes] = useState("");
+  const [calendarDraftDays, setCalendarDraftDays] = useState([]);
+
+  const emptyRosterTemplate = useMemo(
+    () => [
+      { weekday: 1, expectedMinutes: "" },
+      { weekday: 2, expectedMinutes: "" },
+      { weekday: 3, expectedMinutes: "" },
+      { weekday: 4, expectedMinutes: "" },
+      { weekday: 5, expectedMinutes: "" },
+      { weekday: 6, expectedMinutes: "" },
+      { weekday: 7, expectedMinutes: "" },
+    ],
+    []
+  );
+
+  async function loadEmployee() {
+    if (!id) {
+      setLoading(false);
+      setEmployee(null);
+      setErr("Geen werknemer-ID gevonden in de URL.");
+      return;
+    }
+
     setLoading(true);
     setErr("");
     setInfo("");
 
     try {
-      const res = await fetch("/api/employees", {
+      const res = await fetch(`/api/employees/${id}`, {
         cache: "no-store",
       });
 
       const data = await readJson(res);
-      setRows(Array.isArray(data.rows) ? data.rows : []);
+      const row = data.employee || null;
+
+      setEmployee(row);
+      setName(row?.name || "");
+      setPairCode(row?.pairCode || "");
+      setExpectedMode(row?.expectedMode || "");
+      setActive(!!row?.active);
+
+      const apiRoster = Array.isArray(row?.rosterDays) ? row.rosterDays : [];
+      const apiCalendar = Array.isArray(row?.calendarDays) ? row.calendarDays : [];
+
+      const mergedRoster = emptyRosterTemplate.map((baseDay) => {
+        const existing = apiRoster.find((d) => Number(d.weekday) === baseDay.weekday);
+        return {
+          weekday: baseDay.weekday,
+          expectedMinutes:
+            existing && existing.expectedMinutes != null
+              ? Number(existing.expectedMinutes)
+              : "",
+        };
+      });
+
+      const sortedCalendar = [...apiCalendar].sort((a, b) => {
+        const aTime = new Date(a.date).getTime();
+        const bTime = new Date(b.date).getTime();
+        return aTime - bTime;
+      });
+
+      setRosterDays(mergedRoster);
+      setCalendarDays(sortedCalendar);
+      setLastRefresh(new Date());
     } catch (e) {
-      setRows([]);
-      setErr(e?.message || "Werknemers laden mislukt.");
+      setEmployee(null);
+      setRosterDays([]);
+      setCalendarDays([]);
+      setErr(e?.message || "Werknemer laden mislukt.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadEmployees();
-  }, []);
+    loadEmployee();
+  }, [id]);
 
-  async function toggleActive(row) {
-    setSavingId(row.id);
+  async function saveProfile() {
+    if (!id) return;
+
+    setSavingProfile(true);
     setErr("");
     setInfo("");
 
     try {
-      const res = await fetch(`/api/employees/${row.id}`, {
+      const payload = {
+        name,
+        active,
+        expectedMode: expectedMode || null,
+      };
+
+      const res = await fetch(`/api/employees/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await readJson(res);
+      const row = data.employee || null;
+
+      setEmployee(row);
+      setName(row?.name || "");
+      setPairCode(row?.pairCode || "");
+      setExpectedMode(row?.expectedMode || "");
+      setActive(!!row?.active);
+
+      setInfo("Profiel opgeslagen.");
+    } catch (e) {
+      setErr(e?.message || "Profiel opslaan mislukt.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function deleteEmployee() {
+    const ok = window.confirm(`Werknemer "${name}" verwijderen?`);
+    if (!ok) return;
+
+    setDeleting(true);
+    setErr("");
+    setInfo("");
+
+    try {
+      const res = await fetch(`/api/employees/${id}`, {
+        method: "DELETE",
+      });
+
+      await readJson(res);
+      router.push("/app/employees");
+    } catch (e) {
+      setErr(e?.message || "Werknemer verwijderen mislukt.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function updateRosterMinutes(weekday, value) {
+    setRosterDays((prev) =>
+      prev.map((row) =>
+        row.weekday === weekday
+          ? {
+              ...row,
+              expectedMinutes: value === "" ? "" : Number(value),
+            }
+          : row
+      )
+    );
+  }
+
+  async function saveRoster() {
+    if (!id) return;
+
+    setSavingRoster(true);
+    setErr("");
+    setInfo("");
+
+    try {
+      const payload = rosterDays
+        .filter((d) => d.expectedMinutes !== "" && d.expectedMinutes != null)
+        .map((d) => ({
+          weekday: Number(d.weekday),
+          expectedMinutes: Number(d.expectedMinutes || 0),
+        }));
+
+      const res = await fetch(`/api/employees/${id}/roster`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: payload }),
+      });
+
+      await readJson(res);
+      setInfo("Rooster opgeslagen.");
+      await loadEmployee();
+    } catch (e) {
+      setErr(e?.message || "Rooster opslaan mislukt.");
+    } finally {
+      setSavingRoster(false);
+    }
+  }
+
+  async function addSingleCalendarDay() {
+    if (!id) return;
+
+    setSavingCalendar(true);
+    setErr("");
+    setInfo("");
+
+    try {
+      if (!calendarDate) {
+        throw new Error("Kies eerst een datum.");
+      }
+
+      if (calendarMinutes === "" || calendarMinutes == null) {
+        throw new Error("Vul expected minutes in.");
+      }
+
+      const minutes = Number(calendarMinutes);
+      if (Number.isNaN(minutes) || minutes < 0) {
+        throw new Error("Expected minutes mag niet negatief zijn.");
+      }
+
+      const res = await fetch(`/api/employees/${id}/calendar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          active: !row.active,
+          date: calendarDate,
+          expectedMinutes: minutes,
         }),
       });
 
       await readJson(res);
 
-      setRows((prev) =>
-        prev.map((r) =>
-          r.id === row.id
-            ? {
-                ...r,
-                active: !r.active,
-              }
-            : r
-        )
-      );
-
-      setInfo(`Werknemer ${!row.active ? "geactiveerd" : "gedeactiveerd"}.`);
+      setCalendarDate("");
+      setCalendarMinutes("");
+      setInfo("Kalenderdag opgeslagen.");
+      await loadEmployee();
     } catch (e) {
-      setErr(e?.message || "Status wijzigen mislukt.");
+      setErr(e?.message || "Kalenderdag opslaan mislukt.");
     } finally {
-      setSavingId("");
+      setSavingCalendar(false);
     }
   }
 
-  async function deleteEmployee(row) {
-    const ok = window.confirm(`Werknemer "${row.name}" verwijderen?`);
-    if (!ok) return;
+  function generateCalendarRangeDraft() {
+    setErr("");
+    setInfo("");
 
-    setSavingId(row.id);
+    if (!calendarFrom || !calendarTo) {
+      setErr("Kies eerst een van- en tot-datum.");
+      return;
+    }
+
+    if (calendarRangeDefaultMinutes === "" || calendarRangeDefaultMinutes == null) {
+      setErr("Vul eerst standaard minutes in.");
+      return;
+    }
+
+    const dates = getDateRange(calendarFrom, calendarTo);
+    if (dates.length === 0) {
+      setErr("Ongeldige datumrange.");
+      return;
+    }
+
+    const defaultMinutes = Number(calendarRangeDefaultMinutes || 0);
+
+    setCalendarDraftDays(
+      dates.map((date) => ({
+        date,
+        expectedMinutes: defaultMinutes,
+      }))
+    );
+
+    setInfo(`${dates.length} dagen gegenereerd. Pas nu per dag de minuten aan.`);
+  }
+
+  function updateDraftMinutes(date, value) {
+    setCalendarDraftDays((prev) =>
+      prev.map((row) =>
+        row.date === date
+          ? {
+              ...row,
+              expectedMinutes: value === "" ? "" : Number(value),
+            }
+          : row
+      )
+    );
+  }
+
+  function clearCalendarDraft() {
+    setCalendarDraftDays([]);
+  }
+
+  async function saveCalendarRange() {
+    if (!id) return;
+
+    setSavingCalendar(true);
     setErr("");
     setInfo("");
 
     try {
-      const res = await fetch(`/api/employees/${row.id}`, {
-        method: "DELETE",
-      });
+      if (calendarDraftDays.length === 0) {
+        throw new Error("Genereer eerst een range.");
+      }
+
+      for (const row of calendarDraftDays) {
+        if (row.expectedMinutes === "" || row.expectedMinutes == null) {
+          throw new Error(`Vul expected minutes in voor ${row.date}.`);
+        }
+
+        const minutes = Number(row.expectedMinutes);
+        if (Number.isNaN(minutes) || minutes < 0) {
+          throw new Error(`Expected minutes mag niet negatief zijn voor ${row.date}.`);
+        }
+
+        const res = await fetch(`/api/employees/${id}/calendar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: row.date,
+            expectedMinutes: minutes,
+          }),
+        });
+
+        await readJson(res);
+      }
+
+      const count = calendarDraftDays.length;
+
+      setCalendarFrom("");
+      setCalendarTo("");
+      setCalendarRangeDefaultMinutes("");
+      setCalendarDraftDays([]);
+      setInfo(`${count} kalenderdagen opgeslagen.`);
+      await loadEmployee();
+    } catch (e) {
+      setErr(e?.message || "Kalenderdagen opslaan mislukt.");
+    } finally {
+      setSavingCalendar(false);
+    }
+  }
+
+  async function deleteCalendarDay(date) {
+    if (!id || !date) return;
+
+    setSavingCalendar(true);
+    setErr("");
+    setInfo("");
+
+    try {
+      const res = await fetch(
+        `/api/employees/${id}/calendar?date=${encodeURIComponent(date)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       await readJson(res);
-      setRows((prev) => prev.filter((r) => r.id !== row.id));
-      setInfo("Werknemer verwijderd.");
+      setInfo("Kalenderdag verwijderd.");
+      await loadEmployee();
     } catch (e) {
-      setErr(e?.message || "Werknemer verwijderen mislukt.");
+      setErr(e?.message || "Kalenderdag verwijderen mislukt.");
     } finally {
-      setSavingId("");
+      setSavingCalendar(false);
     }
   }
-
-  async function copyText(text, message = "Gekopieerd.") {
-    try {
-      await navigator.clipboard.writeText(text || "");
-      setErr("");
-      setInfo(message);
-    } catch {
-      setErr("Kopiëren is niet gelukt.");
-    }
-  }
-
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesSearch =
-        !q ||
-        String(row.name || "").toLowerCase().includes(q) ||
-        String(row.pairCode || "").toLowerCase().includes(q);
-
-      const matchesActive =
-        activeFilter === "all" ||
-        (activeFilter === "active" && !!row.active) ||
-        (activeFilter === "inactive" && !row.active);
-
-      return matchesSearch && matchesActive;
-    });
-  }, [rows, search, activeFilter]);
 
   return (
     <Box>
       <Card>
         <CardContent>
-          <Stack spacing={2.5}>
+          <Stack spacing={3}>
             <Stack
-              direction={{ xs: "column", md: "row" }}
+              direction="row"
+              alignItems="flex-start"
               justifyContent="space-between"
-              alignItems={{ xs: "stretch", md: "flex-start" }}
               spacing={2}
             >
-              <Box>
-                <Typography variant="h4" fontWeight={800}>
-                  Werknemers
-                </Typography>
-
-                <Typography variant="body2" color="text.secondary">
-                  Beheer werknemers en hun referentietijden
-                </Typography>
-              </Box>
-
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Stack direction="row" spacing={2} alignItems="center">
                 <Button
                   component={Link}
-                  href="/app/employees/new"
-                  variant="contained"
-                  startIcon={<AddIcon />}
+                  href="/app/employees"
+                  variant="text"
+                  startIcon={<ArrowBackIcon />}
                 >
-                  Nieuwe werknemer
+                  Terug
                 </Button>
+
+                <Box>
+                  <Typography variant="h4" fontWeight={800}>
+                    Werknemer detail
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Profiel + planning ({expectedModeLabel(expectedMode)})
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Employee ID: {id || "-"}
+                  </Typography>
+                </Box>
               </Stack>
             </Stack>
+
+            <Divider />
+
+            <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+              <Tab label="PROFIEL" />
+              <Tab label="ROOSTER" />
+              <Tab label="KALENDER" />
+            </Tabs>
 
             {err ? <Alert severity="error">{err}</Alert> : null}
             {info ? <Alert severity="success">{info}</Alert> : null}
 
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              alignItems={{ xs: "stretch", md: "center" }}
-            >
-              <TextField
-                label="Zoeken"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                fullWidth
-              />
+            {loading ? (
+              <Stack direction="row" spacing={2} alignItems="center">
+                <CircularProgress size={20} />
+                <Typography>Laden...</Typography>
+              </Stack>
+            ) : !employee ? (
+              <Alert severity="warning">Geen werknemer gevonden.</Alert>
+            ) : (
+              <>
+                {tab === 0 ? (
+                  <Stack spacing={3}>
+                    <TextField
+                      label="Naam"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      fullWidth
+                    />
 
-              <FormControl sx={{ minWidth: 160 }}>
-                <InputLabel id="active-filter-label">Actief</InputLabel>
+                    <FormControl fullWidth>
+                      <InputLabel id="expected-mode-label">Tijdensysteem</InputLabel>
+                      <Select
+                        labelId="expected-mode-label"
+                        value={expectedMode}
+                        label="Tijdensysteem"
+                        onChange={(e) => setExpectedMode(e.target.value)}
+                      >
+                        <MenuItem value="">
+                          <em>Geen</em>
+                        </MenuItem>
+                        <MenuItem value="ROSTER">Rooster</MenuItem>
+                        <MenuItem value="CALENDAR">Kalender</MenuItem>
+                      </Select>
+                    </FormControl>
 
-                <Select
-                  labelId="active-filter-label"
-                  value={activeFilter}
-                  label="Actief"
-                  onChange={(e) => setActiveFilter(e.target.value)}
-                >
-                  <MenuItem value="all">Alle</MenuItem>
-                  <MenuItem value="active">Alleen actief</MenuItem>
-                  <MenuItem value="inactive">Alleen inactief</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
+                    <Button
+                      variant="contained"
+                      onClick={saveProfile}
+                      disabled={savingProfile}
+                    >
+                      {savingProfile ? "Opslaan..." : "Profiel opslaan"}
+                    </Button>
+                  </Stack>
+                ) : null}
 
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Naam</TableCell>
-                    <TableCell>Koppel Code</TableCell>
-                    <TableCell>Tijdensysteem</TableCell>
-                    <TableCell>Actief</TableCell>
-                    <TableCell align="right">Acties</TableCell>
-                  </TableRow>
-                </TableHead>
+                {tab === 1 ? (
+                  <Stack spacing={3}>
+                    <Typography variant="h6" fontWeight={700}>
+                      Rooster per weekdag
+                    </Typography>
 
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={5}>Laden...</TableCell>
-                    </TableRow>
-                  ) : filteredRows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5}>
-                        Geen werknemers gevonden.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredRows.map((row) => (
-                      <TableRow key={row.id} hover>
-                        <TableCell>
-                          <Button
-                            component={Link}
-                            href={`/app/employees/${row.id}`}
-                            variant="text"
-                            sx={{
-                              p: 0,
-                              minWidth: 0,
-                              textTransform: "none",
-                              fontWeight: 700,
-                            }}
+                    {rosterDays.map((row) => (
+                      <Card key={row.weekday} variant="outlined">
+                        <CardContent>
+                          <Stack
+                            direction={{ xs: "column", md: "row" }}
+                            spacing={2}
+                            justifyContent="space-between"
+                            alignItems={{ xs: "flex-start", md: "center" }}
                           >
-                            {row.name || "-"}
-                          </Button>
-                        </TableCell>
+                            <Box sx={{ minWidth: 180 }}>
+                              <Typography fontWeight={700}>
+                                {weekdayLabel(row.weekday)}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Verwacht: {minutesToHoursLabel(row.expectedMinutes)}
+                              </Typography>
+                            </Box>
 
-                        <TableCell>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <span>{row.pairCode || "-"}</span>
-
-                            <Tooltip title="Kopieer Koppel Code">
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  copyText(
-                                    row.pairCode || "",
-                                    "Koppel Code gekopieerd."
-                                  )
-                                }
-                              >
-                                <ContentCopyIcon fontSize="inherit" />
-                              </IconButton>
-                            </Tooltip>
+                            <TextField
+                              label="Expected minutes"
+                              type="number"
+                              value={row.expectedMinutes}
+                              onChange={(e) =>
+                                updateRosterMinutes(row.weekday, e.target.value)
+                              }
+                              sx={{ width: 220 }}
+                              placeholder=""
+                            />
                           </Stack>
-                        </TableCell>
+                        </CardContent>
+                      </Card>
+                    ))}
 
-                        <TableCell>{expectedModeChip(row.expectedMode)}</TableCell>
+                    <Button
+                      variant="contained"
+                      onClick={saveRoster}
+                      disabled={savingRoster}
+                    >
+                      {savingRoster ? "Opslaan..." : "Rooster opslaan"}
+                    </Button>
+                  </Stack>
+                ) : null}
 
-                        <TableCell>
-                          <Switch
-                            checked={!!row.active}
-                            onChange={() => toggleActive(row)}
-                            disabled={savingId === row.id}
-                          />
-                        </TableCell>
+                {tab === 2 ? (
+                  <Stack spacing={3}>
+                    <Typography variant="h6" fontWeight={700}>
+                      Kalenderdagen
+                    </Typography>
 
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-                            <Button
-                              component={Link}
-                              href={`/app/employees/${row.id}`}
-                              className="reference-times-button"
-                              variant="contained"
-                              size="small"
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Stack spacing={3}>
+                          <FormControl>
+                            <RadioGroup
+                              row
+                              value={calendarMode}
+                              onChange={(e) => {
+                                setCalendarMode(e.target.value);
+                                setCalendarDraftDays([]);
+                              }}
                             >
-                              Referentietijden aanpassen
-                            </Button>
+                              <FormControlLabel
+                                value="single"
+                                control={<Radio />}
+                                label="1 dag"
+                              />
+                              <FormControlLabel
+                                value="range"
+                                control={<Radio />}
+                                label="Range"
+                              />
+                            </RadioGroup>
+                          </FormControl>
 
-                            <Tooltip title="Verwijderen">
-                              <IconButton
-                                onClick={() => deleteEmployee(row)}
-                                disabled={savingId === row.id}
+                          {calendarMode === "single" ? (
+                            <Stack
+                              direction={{ xs: "column", md: "row" }}
+                              spacing={2}
+                              alignItems={{ xs: "stretch", md: "center" }}
+                            >
+                              <TextField
+                                label="Datum"
+                                type="date"
+                                value={calendarDate}
+                                onChange={(e) => setCalendarDate(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                                sx={{ minWidth: 220 }}
+                              />
+
+                              <TextField
+                                label="Expected minutes"
+                                type="number"
+                                value={calendarMinutes}
+                                onChange={(e) => setCalendarMinutes(e.target.value)}
+                                sx={{ minWidth: 220 }}
+                                placeholder=""
+                              />
+
+                              <Button
+                                variant="contained"
+                                onClick={addSingleCalendarDay}
+                                disabled={savingCalendar}
                               >
-                                <DeleteOutlineIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                                {savingCalendar ? "Opslaan..." : "Toevoegen"}
+                              </Button>
+                            </Stack>
+                          ) : (
+                            <Stack spacing={3}>
+                              <Stack
+                                direction={{ xs: "column", md: "row" }}
+                                spacing={2}
+                                alignItems={{ xs: "stretch", md: "center" }}
+                              >
+                                <TextField
+                                  label="Van"
+                                  type="date"
+                                  value={calendarFrom}
+                                  onChange={(e) => setCalendarFrom(e.target.value)}
+                                  InputLabelProps={{ shrink: true }}
+                                  sx={{ minWidth: 220 }}
+                                />
+
+                                <TextField
+                                  label="Tot"
+                                  type="date"
+                                  value={calendarTo}
+                                  onChange={(e) => setCalendarTo(e.target.value)}
+                                  InputLabelProps={{ shrink: true }}
+                                  sx={{ minWidth: 220 }}
+                                />
+
+                                <TextField
+                                  label="Standaard minutes"
+                                  type="number"
+                                  value={calendarRangeDefaultMinutes}
+                                  onChange={(e) =>
+                                    setCalendarRangeDefaultMinutes(e.target.value)
+                                  }
+                                  sx={{ minWidth: 220 }}
+                                  placeholder=""
+                                />
+
+                                <Button
+                                  variant="outlined"
+                                  onClick={generateCalendarRangeDraft}
+                                  disabled={savingCalendar}
+                                >
+                                  Genereer dagen
+                                </Button>
+                              </Stack>
+
+                              {calendarDraftDays.length > 0 ? (
+                                <Stack spacing={2}>
+                                  <Typography variant="subtitle1" fontWeight={700}>
+                                    Range preview
+                                  </Typography>
+
+                                  {calendarDraftDays.map((row) => (
+                                    <Card key={row.date} variant="outlined">
+                                      <CardContent>
+                                        <Stack
+                                          direction={{ xs: "column", md: "row" }}
+                                          spacing={2}
+                                          justifyContent="space-between"
+                                          alignItems={{ xs: "flex-start", md: "center" }}
+                                        >
+                                          <Box sx={{ minWidth: 180 }}>
+                                            <Typography fontWeight={700}>
+                                              {fmtDate(row.date)}
+                                            </Typography>
+                                          </Box>
+
+                                          <TextField
+                                            label="Expected minutes"
+                                            type="number"
+                                            value={row.expectedMinutes}
+                                            onChange={(e) =>
+                                              updateDraftMinutes(row.date, e.target.value)
+                                            }
+                                            sx={{ width: 220 }}
+                                            placeholder=""
+                                          />
+                                        </Stack>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+
+                                  <Stack direction="row" spacing={2}>
+                                    <Button
+                                      variant="contained"
+                                      onClick={saveCalendarRange}
+                                      disabled={savingCalendar}
+                                    >
+                                      {savingCalendar ? "Opslaan..." : "Range opslaan"}
+                                    </Button>
+
+                                    <Button
+                                      variant="text"
+                                      onClick={clearCalendarDraft}
+                                      disabled={savingCalendar}
+                                    >
+                                      Wissen
+                                    </Button>
+                                  </Stack>
+                                </Stack>
+                              ) : null}
+                            </Stack>
+                          )}
+                        </Stack>
+                      </CardContent>
+                    </Card>
+
+                    {calendarDays.length === 0 ? (
+                      <Alert severity="info">Nog geen kalenderdagen ingesteld.</Alert>
+                    ) : (
+                      <Stack spacing={2}>
+                        {calendarDays.map((row) => (
+                          <Card
+                            key={`${row.id || row.date}-${row.date}`}
+                            variant="outlined"
+                          >
+                            <CardContent>
+                              <Stack
+                                direction={{ xs: "column", md: "row" }}
+                                spacing={2}
+                                justifyContent="space-between"
+                                alignItems={{ xs: "flex-start", md: "center" }}
+                              >
+                                <Box>
+                                  <Typography fontWeight={700}>
+                                    {fmtDate(row.date)}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Verwachte tijd: {minutesToHoursLabel(row.expectedMinutes)}
+                                  </Typography>
+                                </Box>
+
+                                <Button
+                                  color="error"
+                                  onClick={() => deleteCalendarDay(row.date)}
+                                  disabled={savingCalendar}
+                                >
+                                  Verwijderen
+                                </Button>
+                              </Stack>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Stack>
+                    )}
+                  </Stack>
+                ) : null}
+              </>
+            )}
           </Stack>
         </CardContent>
       </Card>
