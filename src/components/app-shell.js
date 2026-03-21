@@ -80,6 +80,8 @@ export default function AppShell({ session, children }) {
             boxSizing: "border-box",
             borderRight: "1px solid #ddd",
             bgcolor: "#f8f8f8",
+            display: "flex",
+            flexDirection: "column",
           },
         }}
       >
@@ -154,6 +156,77 @@ export default function AppShell({ session, children }) {
             );
           })}
         </List>
+
+        <Box
+          sx={{
+            px: 2,
+            pb: 2,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1.75,
+          }}
+        >
+          <Box
+            sx={{
+              width: 140,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Image
+              src="/templates/gdpr-logo.png"
+              alt="GDPR Compliant"
+              width={140}
+              height={140}
+              style={{
+                width: "140px",
+                height: "auto",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              width: 140,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Image
+              src="/templates/vestatech-audit-logo.png"
+              alt="Audited by Vestatech"
+              width={140}
+              height={140}
+              style={{
+                width: "140px",
+                height: "auto",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              width: 140,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Image
+              src="/templates/secured-server.png"
+              alt="Secured Server"
+              width={140}
+              height={100}
+              style={{
+                width: "140px",
+                height: "auto",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
+        </Box>
 
         <Box sx={{ mt: "auto", p: 2 }}>
           <Divider sx={{ mb: 2 }} />
