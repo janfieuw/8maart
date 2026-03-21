@@ -120,20 +120,16 @@ export default function EmployeeDetailPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingRoster, setSavingRoster] = useState(false);
   const [savingCalendar, setSavingCalendar] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const [employee, setEmployee] = useState(null);
   const [rosterDays, setRosterDays] = useState([]);
   const [calendarDays, setCalendarDays] = useState([]);
 
   const [name, setName] = useState("");
-  const [pairCode, setPairCode] = useState("");
   const [expectedMode, setExpectedMode] = useState("");
-  const [active, setActive] = useState(true);
 
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
-  const [lastRefresh, setLastRefresh] = useState(null);
 
   const [calendarMode, setCalendarMode] = useState("single");
   const [calendarDate, setCalendarDate] = useState("");
@@ -179,9 +175,7 @@ export default function EmployeeDetailPage() {
 
       setEmployee(row);
       setName(row?.name || "");
-      setPairCode(row?.pairCode || "");
       setExpectedMode(row?.expectedMode || "");
-      setActive(!!row?.active);
 
       const apiRoster = Array.isArray(row?.rosterDays) ? row.rosterDays : [];
       const apiCalendar = Array.isArray(row?.calendarDays) ? row.calendarDays : [];
@@ -205,7 +199,6 @@ export default function EmployeeDetailPage() {
 
       setRosterDays(mergedRoster);
       setCalendarDays(sortedCalendar);
-      setLastRefresh(new Date());
     } catch (e) {
       setEmployee(null);
       setRosterDays([]);
@@ -230,7 +223,6 @@ export default function EmployeeDetailPage() {
     try {
       const payload = {
         name,
-        active,
         expectedMode: expectedMode || null,
       };
 
@@ -245,37 +237,13 @@ export default function EmployeeDetailPage() {
 
       setEmployee(row);
       setName(row?.name || "");
-      setPairCode(row?.pairCode || "");
       setExpectedMode(row?.expectedMode || "");
-      setActive(!!row?.active);
 
       setInfo("Profiel opgeslagen.");
     } catch (e) {
       setErr(e?.message || "Profiel opslaan mislukt.");
     } finally {
       setSavingProfile(false);
-    }
-  }
-
-  async function deleteEmployee() {
-    const ok = window.confirm(`Werknemer "${name}" verwijderen?`);
-    if (!ok) return;
-
-    setDeleting(true);
-    setErr("");
-    setInfo("");
-
-    try {
-      const res = await fetch(`/api/employees/${id}`, {
-        method: "DELETE",
-      });
-
-      await readJson(res);
-      router.push("/app/employees");
-    } catch (e) {
-      setErr(e?.message || "Werknemer verwijderen mislukt.");
-    } finally {
-      setDeleting(false);
     }
   }
 
@@ -335,13 +303,14 @@ export default function EmployeeDetailPage() {
         throw new Error("Kies eerst een datum.");
       }
 
-      if (calendarMinutes === "" || calendarMinutes == null) {
-        throw new Error("Vul expected minutes in.");
-      }
+      let minutes = null;
 
-      const minutes = Number(calendarMinutes);
-      if (Number.isNaN(minutes) || minutes < 0) {
-        throw new Error("Expected minutes mag niet negatief zijn.");
+      if (calendarMinutes !== "" && calendarMinutes != null) {
+        minutes = Number(calendarMinutes);
+
+        if (Number.isNaN(minutes) || minutes < 0) {
+          throw new Error("Verwachte minuten mogen niet negatief zijn.");
+        }
       }
 
       const res = await fetch(`/api/employees/${id}/calendar`, {
@@ -375,18 +344,25 @@ export default function EmployeeDetailPage() {
       return;
     }
 
-    if (calendarRangeDefaultMinutes === "" || calendarRangeDefaultMinutes == null) {
-      setErr("Vul eerst standaard minutes in.");
-      return;
-    }
-
     const dates = getDateRange(calendarFrom, calendarTo);
     if (dates.length === 0) {
       setErr("Ongeldige datumrange.");
       return;
     }
 
-    const defaultMinutes = Number(calendarRangeDefaultMinutes || 0);
+    let defaultMinutes = null;
+
+    if (
+      calendarRangeDefaultMinutes !== "" &&
+      calendarRangeDefaultMinutes != null
+    ) {
+      defaultMinutes = Number(calendarRangeDefaultMinutes);
+
+      if (Number.isNaN(defaultMinutes) || defaultMinutes < 0) {
+        setErr("Standaard minuten mogen niet negatief zijn.");
+        return;
+      }
+    }
 
     setCalendarDraftDays(
       dates.map((date) => ({
@@ -395,7 +371,7 @@ export default function EmployeeDetailPage() {
       }))
     );
 
-    setInfo(`${dates.length} dagen gegenereerd. Pas nu per dag de minuten aan.`);
+    setInfo(`${dates.length} dagen gegenereerd.`);
   }
 
   function updateDraftMinutes(date, value) {
@@ -428,13 +404,16 @@ export default function EmployeeDetailPage() {
       }
 
       for (const row of calendarDraftDays) {
-        if (row.expectedMinutes === "" || row.expectedMinutes == null) {
-          throw new Error(`Vul expected minutes in voor ${row.date}.`);
-        }
+        let minutes = null;
 
-        const minutes = Number(row.expectedMinutes);
-        if (Number.isNaN(minutes) || minutes < 0) {
-          throw new Error(`Expected minutes mag niet negatief zijn voor ${row.date}.`);
+        if (row.expectedMinutes !== "" && row.expectedMinutes != null) {
+          minutes = Number(row.expectedMinutes);
+
+          if (Number.isNaN(minutes) || minutes < 0) {
+            throw new Error(
+              `Verwachte minuten mogen niet negatief zijn voor ${row.date}.`
+            );
+          }
         }
 
         const res = await fetch(`/api/employees/${id}/calendar`, {
@@ -604,7 +583,7 @@ export default function EmployeeDetailPage() {
                             </Box>
 
                             <TextField
-                              label="Expected minutes"
+                              label="Verwachte minuten"
                               type="number"
                               value={row.expectedMinutes}
                               onChange={(e) =>
@@ -675,7 +654,7 @@ export default function EmployeeDetailPage() {
                               />
 
                               <TextField
-                                label="Expected minutes"
+                                label="Verwachte minuten (optioneel)"
                                 type="number"
                                 value={calendarMinutes}
                                 onChange={(e) => setCalendarMinutes(e.target.value)}
@@ -717,7 +696,7 @@ export default function EmployeeDetailPage() {
                                 />
 
                                 <TextField
-                                  label="Standaard minutes"
+                                  label="Standaard minuten (optioneel)"
                                   type="number"
                                   value={calendarRangeDefaultMinutes}
                                   onChange={(e) =>
@@ -758,13 +737,13 @@ export default function EmployeeDetailPage() {
                                           </Box>
 
                                           <TextField
-                                            label="Expected minutes"
+                                            label="Verwachte minuten (optioneel)"
                                             type="number"
-                                            value={row.expectedMinutes}
+                                            value={row.expectedMinutes ?? ""}
                                             onChange={(e) =>
                                               updateDraftMinutes(row.date, e.target.value)
                                             }
-                                            sx={{ width: 220 }}
+                                            sx={{ width: 260 }}
                                             placeholder=""
                                           />
                                         </Stack>
