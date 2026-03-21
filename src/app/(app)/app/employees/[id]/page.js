@@ -16,7 +16,6 @@ import {
   DialogTitle,
   Divider,
   FormControl,
-  Grid,
   IconButton,
   InputLabel,
   MenuItem,
@@ -612,7 +611,13 @@ export default function EmployeeDetailPage() {
                             </IconButton>
                           </Stack>
 
-                          <Grid container columns={7} spacing={1}>
+                          <Box
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                              gap: 1,
+                            }}
+                          >
                             {[
                               "Maandag",
                               "Dinsdag",
@@ -622,41 +627,44 @@ export default function EmployeeDetailPage() {
                               "Zaterdag",
                               "Zondag",
                             ].map((day) => (
-                              <Grid key={day} xs={1}>
-                                <Box
-                                  sx={{
-                                    border: "1px solid",
-                                    borderColor: "divider",
-                                    bgcolor: "grey.100",
-                                    px: 1,
-                                    py: 1,
-                                    minHeight: 40,
-                                  }}
+                              <Box
+                                key={day}
+                                sx={{
+                                  border: "1px solid",
+                                  borderColor: "divider",
+                                  bgcolor: "grey.100",
+                                  px: 1,
+                                  py: 1,
+                                  minHeight: 44,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={700}
+                                  align="center"
+                                  noWrap
                                 >
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight={700}
-                                    align="center"
-                                  >
-                                    {day}
-                                  </Typography>
-                                </Box>
-                              </Grid>
+                                  {day}
+                                </Typography>
+                              </Box>
                             ))}
 
                             {calendarCells.map((cell, index) => {
                               if (!cell) {
                                 return (
-                                  <Grid key={`empty-${index}`} xs={1}>
-                                    <Box
-                                      sx={{
-                                        border: "1px solid",
-                                        borderColor: "divider",
-                                        minHeight: 120,
-                                        bgcolor: "grey.50",
-                                      }}
-                                    />
-                                  </Grid>
+                                  <Box
+                                    key={`empty-${index}`}
+                                    sx={{
+                                      border: "1px solid",
+                                      borderColor: "divider",
+                                      minHeight: 120,
+                                      bgcolor: "grey.50",
+                                    }}
+                                  />
                                 );
                               }
 
@@ -665,60 +673,74 @@ export default function EmployeeDetailPage() {
                               const isPast = isPastDateKey(cell.key);
 
                               return (
-                                <Grid key={cell.key} xs={1}>
-                                  <Box
-                                    onClick={() => openCalendarDay(cell.key)}
-                                    sx={{
-                                      border: "1px solid",
-                                      borderColor: "divider",
-                                      minHeight: 120,
-                                      p: 1,
-                                      bgcolor: isPast ? "grey.100" : "common.white",
-                                      cursor: isPast ? "default" : "pointer",
-                                      opacity: isPast ? 0.75 : 1,
-                                      "&:hover": isPast
-                                        ? {}
-                                        : {
-                                            bgcolor: "action.hover",
-                                          },
-                                    }}
+                                <Box
+                                  key={cell.key}
+                                  onClick={() => openCalendarDay(cell.key)}
+                                  sx={{
+                                    border: "1px solid",
+                                    borderColor: "divider",
+                                    minHeight: 120,
+                                    p: 1,
+                                    bgcolor: isPast ? "grey.100" : "common.white",
+                                    cursor: isPast ? "default" : "pointer",
+                                    opacity: isPast ? 0.75 : 1,
+                                    overflow: "hidden",
+                                    "&:hover": isPast
+                                      ? {}
+                                      : {
+                                          bgcolor: "action.hover",
+                                        },
+                                  }}
+                                >
+                                  <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                    alignItems="flex-start"
+                                    spacing={1}
                                   >
-                                    <Stack
-                                      direction="row"
-                                      justifyContent="space-between"
-                                      alignItems="flex-start"
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={800}
+                                      sx={{ flexShrink: 0 }}
                                     >
-                                      <Typography variant="body2" fontWeight={800}>
-                                        {cell.dayNumber}
+                                      {cell.dayNumber}
+                                    </Typography>
+
+                                    {isPast ? (
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{ textAlign: "right" }}
+                                      >
+                                        Vergrendeld
                                       </Typography>
+                                    ) : null}
+                                  </Stack>
 
-                                      {isPast ? (
-                                        <Typography
-                                          variant="caption"
-                                          color="text.secondary"
-                                        >
-                                          Vergrendeld
-                                        </Typography>
-                                      ) : null}
-                                    </Stack>
-
-                                    <Box sx={{ mt: 1 }}>
-                                      {hasValue ? (
-                                        <Typography variant="body2" color="text.secondary">
-                                          Referentietijd:{" "}
-                                          <strong>{minutesToHoursLabel(existingMinutes)}</strong>
-                                        </Typography>
-                                      ) : (
-                                        <Typography variant="body2" color="text.secondary">
-                                          Geen tijd ingesteld
-                                        </Typography>
-                                      )}
-                                    </Box>
+                                  <Box sx={{ mt: 1 }}>
+                                    {hasValue ? (
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ wordBreak: "break-word" }}
+                                      >
+                                        Referentietijd:{" "}
+                                        <strong>{minutesToHoursLabel(existingMinutes)}</strong>
+                                      </Typography>
+                                    ) : (
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ wordBreak: "break-word" }}
+                                      >
+                                        Geen tijd ingesteld
+                                      </Typography>
+                                    )}
                                   </Box>
-                                </Grid>
+                                </Box>
                               );
                             })}
-                          </Grid>
+                          </Box>
                         </Stack>
                       </CardContent>
                     </Card>
