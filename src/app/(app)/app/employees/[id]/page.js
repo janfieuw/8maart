@@ -10,21 +10,26 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
+  Grid,
+  IconButton,
   InputLabel,
   MenuItem,
-  Radio,
-  RadioGroup,
   Select,
   Stack,
   Tab,
   Tabs,
   TextField,
   Typography,
-  FormControlLabel,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 function fmtDate(value) {
   if (!value) return "-";
@@ -43,26 +48,6 @@ function toIsoDateString(date) {
   const month = `${d.getMonth() + 1}`.padStart(2, "0");
   const day = `${d.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function getDateRange(from, to) {
-  if (!from || !to) return [];
-
-  const start = new Date(`${from}T00:00:00`);
-  const end = new Date(`${to}T00:00:00`);
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
-  if (start.getTime() > end.getTime()) return [];
-
-  const result = [];
-  const current = new Date(start);
-
-  while (current.getTime() <= end.getTime()) {
-    result.push(toIsoDateString(current));
-    current.setDate(current.getDate() + 1);
-  }
-
-  return result;
 }
 
 function weekdayLabel(weekday) {
@@ -90,6 +75,65 @@ function expectedModeLabel(value) {
   if (value === "ROSTER") return "Rooster";
   if (value === "CALENDAR") return "Kalender";
   return "Geen tijdensysteem";
+}
+
+function monthTitle(date) {
+  try {
+    return date.toLocaleDateString("nl-BE", {
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return `${date.getMonth() + 1}/${date.getFullYear()}`;
+  }
+}
+
+function getTodayKey() {
+  return toIsoDateString(new Date());
+}
+
+function isPastDateKey(dateKey) {
+  return dateKey < getTodayKey();
+}
+
+function extractDateKey(value) {
+  if (!value) return "";
+  if (typeof value === "string") {
+    return value.slice(0, 10);
+  }
+  return toIsoDateString(value);
+}
+
+function getMonthGrid(baseDate) {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  const firstWeekday = (firstDay.getDay() + 6) % 7;
+  const totalDays = lastDay.getDate();
+
+  const cells = [];
+
+  for (let i = 0; i < firstWeekday; i += 1) {
+    cells.push(null);
+  }
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    const date = new Date(year, month, day);
+    cells.push({
+      date,
+      key: toIsoDateString(date),
+      dayNumber: day,
+    });
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
 }
 
 async function readJson(res) {
@@ -130,14 +174,14 @@ export default function EmployeeDetailPage() {
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
 
-  const [calendarMode, setCalendarMode] = useState("single");
-  const [calendarDate, setCalendarDate] = useState("");
-  const [calendarMinutes, setCalendarMinutes] = useState("");
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
-  const [calendarFrom, setCalendarFrom] = useState("");
-  const [calendarTo, setCalendarTo] = useState("");
-  const [calendarRangeDefaultMinutes, setCalendarRangeDefaultMinutes] = useState("");
-  const [calendarDraftDays, setCalendarDraftDays] = useState([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedDateKey, setSelectedDateKey] = useState("");
+  const [selectedMinutes, setSelectedMinutes] = useState("");
 
   const emptyRosterTemplate = useMemo(
     () => [
@@ -151,6 +195,18 @@ export default function EmployeeDetailPage() {
     ],
     []
   );
+
+  const calendarMap = useMemo(() => {
+    const map = {};
+    for (const row of calendarDays) {
+      const key = extractDateKey(row?.date);
+      if (!key) continue;
+      map[key] = row?.expectedMinutes ?? 0;
+    }
+    return map;
+  }, [calendarDays]);
+
+  const calendarCells = useMemo(() => getMonthGrid(calendarMonth), [calendarMonth]);
 
   async function loadEmployee() {
     if (!id) {
@@ -191,9 +247,9 @@ export default function EmployeeDetailPage() {
       });
 
       const sortedCalendar = [...apiCalendar].sort((a, b) => {
-        const aTime = new Date(a.date).getTime();
-        const bTime = new Date(b.date).getTime();
-        return aTime - bTime;
+        const aKey = extractDateKey(a?.date);
+        const bKey = extractDateKey(b?.date);
+        return aKey.localeCompare(bKey);
       });
 
       setRosterDays(mergedRoster);
@@ -290,24 +346,38 @@ export default function EmployeeDetailPage() {
     }
   }
 
-  async function addSingleCalendarDay() {
-    if (!id) return;
+  function openCalendarDay(dateKey) {
+    if (!dateKey || isPastDateKey(dateKey)) return;
+
+    setSelectedDateKey(dateKey);
+    const currentValue = calendarMap[dateKey];
+    setSelectedMinutes(
+      currentValue === undefined || currentValue === null ? "" : String(currentValue)
+    );
+    setDialogOpen(true);
+  }
+
+  function closeCalendarDialog() {
+    if (savingCalendar) return;
+    setDialogOpen(false);
+    setSelectedDateKey("");
+    setSelectedMinutes("");
+  }
+
+  async function saveCalendarDay() {
+    if (!id || !selectedDateKey) return;
 
     setSavingCalendar(true);
     setErr("");
     setInfo("");
 
     try {
-      if (!calendarDate) {
-        throw new Error("Kies eerst een datum.");
-      }
+      let expectedMinutes = 0;
 
-      let minutes = null;
+      if (selectedMinutes !== "" && selectedMinutes != null) {
+        expectedMinutes = Number(selectedMinutes);
 
-      if (calendarMinutes !== "" && calendarMinutes != null) {
-        minutes = Number(calendarMinutes);
-
-        if (Number.isNaN(minutes) || minutes < 0) {
+        if (Number.isNaN(expectedMinutes) || expectedMinutes < 0) {
           throw new Error("Verwachte minuten mogen niet negatief zijn.");
         }
       }
@@ -316,16 +386,14 @@ export default function EmployeeDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          date: calendarDate,
-          expectedMinutes: minutes,
+          date: selectedDateKey,
+          expectedMinutes,
         }),
       });
 
       await readJson(res);
-
-      setCalendarDate("");
-      setCalendarMinutes("");
       setInfo("Kalenderdag opgeslagen.");
+      closeCalendarDialog();
       await loadEmployee();
     } catch (e) {
       setErr(e?.message || "Kalenderdag opslaan mislukt.");
@@ -334,116 +402,8 @@ export default function EmployeeDetailPage() {
     }
   }
 
-  function generateCalendarRangeDraft() {
-    setErr("");
-    setInfo("");
-
-    if (!calendarFrom || !calendarTo) {
-      setErr("Kies eerst een van- en tot-datum.");
-      return;
-    }
-
-    const dates = getDateRange(calendarFrom, calendarTo);
-    if (dates.length === 0) {
-      setErr("Ongeldige datumrange.");
-      return;
-    }
-
-    let defaultMinutes = null;
-
-    if (
-      calendarRangeDefaultMinutes !== "" &&
-      calendarRangeDefaultMinutes != null
-    ) {
-      defaultMinutes = Number(calendarRangeDefaultMinutes);
-
-      if (Number.isNaN(defaultMinutes) || defaultMinutes < 0) {
-        setErr("Standaard minuten mogen niet negatief zijn.");
-        return;
-      }
-    }
-
-    setCalendarDraftDays(
-      dates.map((date) => ({
-        date,
-        expectedMinutes: defaultMinutes,
-      }))
-    );
-
-    setInfo(`${dates.length} dagen gegenereerd.`);
-  }
-
-  function updateDraftMinutes(date, value) {
-    setCalendarDraftDays((prev) =>
-      prev.map((row) =>
-        row.date === date
-          ? {
-              ...row,
-              expectedMinutes: value === "" ? "" : Number(value),
-            }
-          : row
-      )
-    );
-  }
-
-  function clearCalendarDraft() {
-    setCalendarDraftDays([]);
-  }
-
-  async function saveCalendarRange() {
-    if (!id) return;
-
-    setSavingCalendar(true);
-    setErr("");
-    setInfo("");
-
-    try {
-      if (calendarDraftDays.length === 0) {
-        throw new Error("Genereer eerst een periode.");
-      }
-
-      for (const row of calendarDraftDays) {
-        let minutes = null;
-
-        if (row.expectedMinutes !== "" && row.expectedMinutes != null) {
-          minutes = Number(row.expectedMinutes);
-
-          if (Number.isNaN(minutes) || minutes < 0) {
-            throw new Error(
-              `Verwachte minuten mogen niet negatief zijn voor ${row.date}.`
-            );
-          }
-        }
-
-        const res = await fetch(`/api/employees/${id}/calendar`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date: row.date,
-            expectedMinutes: minutes,
-          }),
-        });
-
-        await readJson(res);
-      }
-
-      const count = calendarDraftDays.length;
-
-      setCalendarFrom("");
-      setCalendarTo("");
-      setCalendarRangeDefaultMinutes("");
-      setCalendarDraftDays([]);
-      setInfo(`${count} kalenderdagen opgeslagen.`);
-      await loadEmployee();
-    } catch (e) {
-      setErr(e?.message || "Kalenderdagen opslaan mislukt.");
-    } finally {
-      setSavingCalendar(false);
-    }
-  }
-
-  async function deleteCalendarDay(date) {
-    if (!id || !date) return;
+  async function deleteCalendarDay(dateKey) {
+    if (!id || !dateKey || isPastDateKey(dateKey)) return;
 
     setSavingCalendar(true);
     setErr("");
@@ -451,7 +411,7 @@ export default function EmployeeDetailPage() {
 
     try {
       const res = await fetch(
-        `/api/employees/${id}/calendar?date=${encodeURIComponent(date)}`,
+        `/api/employees/${id}/calendar?date=${encodeURIComponent(dateKey)}`,
         {
           method: "DELETE",
         }
@@ -459,12 +419,21 @@ export default function EmployeeDetailPage() {
 
       await readJson(res);
       setInfo("Kalenderdag verwijderd.");
+      closeCalendarDialog();
       await loadEmployee();
     } catch (e) {
       setErr(e?.message || "Kalenderdag verwijderen mislukt.");
     } finally {
       setSavingCalendar(false);
     }
+  }
+
+  function goToPreviousMonth() {
+    setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }
+
+  function goToNextMonth() {
+    setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   }
 
   return (
@@ -608,193 +577,205 @@ export default function EmployeeDetailPage() {
 
                 {tab === 2 ? (
                   <Stack spacing={3}>
-                    <Typography variant="h6" fontWeight={700}>
-                      Maak een Kalenderperiode aan. 
-                    </Typography>
-                     <Typography variant="body2" color="text.secondary">
-                    Daarna kun je voor elke dag individueel de referentietijd invullen.
-                    </Typography>
+                    <Box>
+                      <Typography variant="h6" fontWeight={700}>
+                        Kalender
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Klik op een dag om de referentietijd in te vullen. Voorbije dagen
+                        kunnen niet aangepast worden.
+                      </Typography>
+                    </Box>
+
                     <Card variant="outlined">
                       <CardContent>
                         <Stack spacing={3}>
-                          <FormControl>
-                            <RadioGroup
-                              row
-                              value={calendarMode}
-                              onChange={(e) => {
-                                setCalendarMode(e.target.value);
-                                setCalendarDraftDays([]);
-                              }}
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            justifyContent="space-between"
+                          >
+                            <IconButton onClick={goToPreviousMonth}>
+                              <ChevronLeftIcon />
+                            </IconButton>
+
+                            <Typography
+                              variant="h5"
+                              fontWeight={800}
+                              sx={{ textTransform: "capitalize" }}
                             >
-                              <FormControlLabel
-                                value="single"
-                                control={<Radio />}
-                                label="1 dag"
-                              />
-                              <FormControlLabel
-                                value="range"
-                                control={<Radio />}
-                                label="Periode"
-                              />
-                            </RadioGroup>
-                          </FormControl>
+                              {monthTitle(calendarMonth)}
+                            </Typography>
 
-                          {calendarMode === "single" ? (
-                            <Stack
-                              direction={{ xs: "column", md: "row" }}
-                              spacing={2}
-                              alignItems={{ xs: "stretch", md: "center" }}
-                            >
-                              <TextField
-                                label="Datum"
-                                type="date"
-                                value={calendarDate}
-                                onChange={(e) => setCalendarDate(e.target.value)}
-                                InputLabelProps={{ shrink: true }}
-                                sx={{ minWidth: 220 }}
-                              />
+                            <IconButton onClick={goToNextMonth}>
+                              <ChevronRightIcon />
+                            </IconButton>
+                          </Stack>
 
-                              <Button
-                                variant="contained"
-                                onClick={addSingleCalendarDay}
-                                disabled={savingCalendar}
-                              >
-                                {savingCalendar ? "Opslaan..." : "Toevoegen"}
-                              </Button>
-                            </Stack>
-                          ) : (
-                            <Stack spacing={3}>
-                              <Stack
-                                direction={{ xs: "column", md: "row" }}
-                                spacing={2}
-                                alignItems={{ xs: "stretch", md: "center" }}
-                              >
-                                <TextField
-                                  label="Van"
-                                  type="date"
-                                  value={calendarFrom}
-                                  onChange={(e) => setCalendarFrom(e.target.value)}
-                                  InputLabelProps={{ shrink: true }}
-                                  sx={{ minWidth: 220 }}
-                                />
-
-                                <TextField
-                                  label="Tot"
-                                  type="date"
-                                  value={calendarTo}
-                                  onChange={(e) => setCalendarTo(e.target.value)}
-                                  InputLabelProps={{ shrink: true }}
-                                  sx={{ minWidth: 220 }}
-                                />
-
-                                <Button
-                                  variant="outlined"
-                                  onClick={generateCalendarRangeDraft}
-                                  disabled={savingCalendar}
+                          <Grid container columns={7} spacing={1}>
+                            {[
+                              "Maandag",
+                              "Dinsdag",
+                              "Woensdag",
+                              "Donderdag",
+                              "Vrijdag",
+                              "Zaterdag",
+                              "Zondag",
+                            ].map((day) => (
+                              <Grid key={day} xs={1}>
+                                <Box
+                                  sx={{
+                                    border: "1px solid",
+                                    borderColor: "divider",
+                                    bgcolor: "grey.100",
+                                    px: 1,
+                                    py: 1,
+                                    minHeight: 40,
+                                  }}
                                 >
-                                  Genereer dagen
-                                </Button>
-                              </Stack>
-
-                              {calendarDraftDays.length > 0 ? (
-                                <Stack spacing={2}>
-                                  <Typography variant="subtitle1" fontWeight={700}>
-                                    Periode preview
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={700}
+                                    align="center"
+                                  >
+                                    {day}
                                   </Typography>
+                                </Box>
+                              </Grid>
+                            ))}
 
-                                  {calendarDraftDays.map((row) => (
-                                    <Card key={row.date} variant="outlined">
-                                      <CardContent>
-                                        <Stack
-                                          direction={{ xs: "column", md: "row" }}
-                                          spacing={2}
-                                          justifyContent="space-between"
-                                          alignItems={{ xs: "flex-start", md: "center" }}
+                            {calendarCells.map((cell, index) => {
+                              if (!cell) {
+                                return (
+                                  <Grid key={`empty-${index}`} xs={1}>
+                                    <Box
+                                      sx={{
+                                        border: "1px solid",
+                                        borderColor: "divider",
+                                        minHeight: 120,
+                                        bgcolor: "grey.50",
+                                      }}
+                                    />
+                                  </Grid>
+                                );
+                              }
+
+                              const existingMinutes = calendarMap[cell.key];
+                              const hasValue = existingMinutes !== undefined;
+                              const isPast = isPastDateKey(cell.key);
+
+                              return (
+                                <Grid key={cell.key} xs={1}>
+                                  <Box
+                                    onClick={() => openCalendarDay(cell.key)}
+                                    sx={{
+                                      border: "1px solid",
+                                      borderColor: "divider",
+                                      minHeight: 120,
+                                      p: 1,
+                                      bgcolor: isPast ? "grey.100" : "common.white",
+                                      cursor: isPast ? "default" : "pointer",
+                                      opacity: isPast ? 0.75 : 1,
+                                      "&:hover": isPast
+                                        ? {}
+                                        : {
+                                            bgcolor: "action.hover",
+                                          },
+                                    }}
+                                  >
+                                    <Stack
+                                      direction="row"
+                                      justifyContent="space-between"
+                                      alignItems="flex-start"
+                                    >
+                                      <Typography variant="body2" fontWeight={800}>
+                                        {cell.dayNumber}
+                                      </Typography>
+
+                                      {isPast ? (
+                                        <Typography
+                                          variant="caption"
+                                          color="text.secondary"
                                         >
-                                          <Box sx={{ minWidth: 180 }}>
-                                            <Typography fontWeight={700}>
-                                              {fmtDate(row.date)}
-                                            </Typography>
-                                          </Box>
+                                          Vergrendeld
+                                        </Typography>
+                                      ) : null}
+                                    </Stack>
 
-                                          <TextField
-                                            label="Verwachte minuten"
-                                            type="number"
-                                            value={row.expectedMinutes ?? ""}
-                                            onChange={(e) =>
-                                              updateDraftMinutes(row.date, e.target.value)
-                                            }
-                                            sx={{ width: 240 }}
-                                            placeholder=""
-                                          />
-                                        </Stack>
-                                      </CardContent>
-                                    </Card>
-                                  ))}
-
-                                  <Stack direction="row" spacing={2}>
-                                    <Button
-                                      variant="contained"
-                                      onClick={saveCalendarRange}
-                                      disabled={savingCalendar}
-                                    >
-                                      {savingCalendar ? "Opslaan..." : "Periode opslaan"}
-                                    </Button>
-
-                                    <Button
-                                      variant="text"
-                                      onClick={clearCalendarDraft}
-                                      disabled={savingCalendar}
-                                    >
-                                      Wissen
-                                    </Button>
-                                  </Stack>
-                                </Stack>
-                              ) : null}
-                            </Stack>
-                          )}
+                                    <Box sx={{ mt: 1 }}>
+                                      {hasValue ? (
+                                        <Typography variant="body2" color="text.secondary">
+                                          Referentietijd:{" "}
+                                          <strong>{minutesToHoursLabel(existingMinutes)}</strong>
+                                        </Typography>
+                                      ) : (
+                                        <Typography variant="body2" color="text.secondary">
+                                          Geen tijd ingesteld
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Box>
+                                </Grid>
+                              );
+                            })}
+                          </Grid>
                         </Stack>
                       </CardContent>
                     </Card>
 
-                    {calendarDays.length === 0 ? (
-                      <Alert severity="info">Nog geen kalenderdagen ingesteld.</Alert>
-                    ) : (
-                      <Stack spacing={2}>
-                        {calendarDays.map((row) => (
-                          <Card
-                            key={`${row.id || row.date}-${row.date}`}
-                            variant="outlined"
-                          >
-                            <CardContent>
-                              <Stack
-                                direction={{ xs: "column", md: "row" }}
-                                spacing={2}
-                                justifyContent="space-between"
-                                alignItems={{ xs: "flex-start", md: "center" }}
-                              >
-                                <Box>
-                                  <Typography fontWeight={700}>
-                                    {fmtDate(row.date)}
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Verwachte tijd: {minutesToHoursLabel(row.expectedMinutes)}
-                                  </Typography>
-                                </Box>
+                    <Dialog
+                      open={dialogOpen}
+                      onClose={closeCalendarDialog}
+                      fullWidth
+                      maxWidth="xs"
+                    >
+                      <DialogTitle>{fmtDate(selectedDateKey)}</DialogTitle>
 
-                                <Button
-                                  color="error"
-                                  onClick={() => deleteCalendarDay(row.date)}
-                                  disabled={savingCalendar}
-                                >
-                                  Verwijderen
-                                </Button>
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </Stack>
-                    )}
+                      <DialogContent>
+                        <Stack spacing={2} sx={{ pt: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Vul de referentietijd in minuten in.
+                          </Typography>
+
+                          <TextField
+                            label="Verwachte minuten"
+                            type="number"
+                            value={selectedMinutes}
+                            onChange={(e) => setSelectedMinutes(e.target.value)}
+                            fullWidth
+                          />
+                        </Stack>
+                      </DialogContent>
+
+                      <DialogActions
+                        sx={{ px: 3, pb: 3, justifyContent: "space-between" }}
+                      >
+                        <Box>
+                          {selectedDateKey && calendarMap[selectedDateKey] !== undefined ? (
+                            <Button
+                              color="error"
+                              onClick={() => deleteCalendarDay(selectedDateKey)}
+                              disabled={savingCalendar}
+                            >
+                              Verwijderen
+                            </Button>
+                          ) : null}
+                        </Box>
+
+                        <Stack direction="row" spacing={1}>
+                          <Button onClick={closeCalendarDialog} disabled={savingCalendar}>
+                            Annuleren
+                          </Button>
+                          <Button
+                            variant="contained"
+                            onClick={saveCalendarDay}
+                            disabled={savingCalendar}
+                          >
+                            {savingCalendar ? "Opslaan..." : "Opslaan"}
+                          </Button>
+                        </Stack>
+                      </DialogActions>
+                    </Dialog>
                   </Stack>
                 ) : null}
               </>
