@@ -546,64 +546,72 @@ export default function EmployeeDetailPage() {
                               gap: 1,
                             }}
                           >
-                            {rosterDays.map((row) => (
-                              <Box
-                                key={row.weekday}
-                                sx={{
-                                  border: "1px solid",
-                                  borderColor: "divider",
-                                  minHeight: 180,
-                                  bgcolor: "common.white",
-                                  p: 1,
-                                  overflow: "hidden",
-                                }}
-                              >
+                            {rosterDays.map((row) => {
+                              const hasPositiveValue =
+                                row.expectedMinutes !== "" &&
+                                row.expectedMinutes != null &&
+                                Number(row.expectedMinutes) > 0;
+
+                              return (
                                 <Box
+                                  key={row.weekday}
                                   sx={{
                                     border: "1px solid",
-                                    borderColor: "divider",
-                                    bgcolor: "grey.100",
-                                    px: 1,
-                                    py: 1,
-                                    mb: 1.5,
-                                    minHeight: 44,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
+                                    borderColor: hasPositiveValue ? "#8bc34a" : "#d9d9d9",
+                                    minHeight: 180,
+                                    bgcolor: hasPositiveValue ? "#dff3e3" : "#ffffff",
+                                    p: 1,
+                                    overflow: "hidden",
                                   }}
                                 >
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight={700}
-                                    align="center"
-                                    noWrap
+                                  <Box
+                                    sx={{
+                                      border: "1px solid",
+                                      borderColor: "#d9d9d9",
+                                      bgcolor: "#f5f5f5",
+                                      px: 1,
+                                      py: 1,
+                                      mb: 1.5,
+                                      minHeight: 44,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
                                   >
-                                    {weekdayLabel(row.weekday)}
-                                  </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={700}
+                                      align="center"
+                                      noWrap
+                                    >
+                                      {weekdayLabel(row.weekday)}
+                                    </Typography>
+                                  </Box>
+
+                                  <Stack spacing={1.5}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Referentietijd:{" "}
+                                      <strong>{minutesToHoursLabel(row.expectedMinutes)}</strong>
+                                    </Typography>
+
+                                    <TextField
+                                      label="Verwachte minuten"
+                                      type="number"
+                                      value={row.expectedMinutes}
+                                      onChange={(e) =>
+                                        updateRosterMinutes(row.weekday, e.target.value)
+                                      }
+                                      fullWidth
+                                      size="small"
+                                    />
+
+                                    <Typography variant="caption" color="text.secondary">
+                                      Leeg = 0 minuten.
+                                    </Typography>
+                                  </Stack>
                                 </Box>
-
-                                <Stack spacing={1.5}>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Huidig: <strong>{minutesToHoursLabel(row.expectedMinutes)}</strong>
-                                  </Typography>
-
-                                  <TextField
-                                    label="Verwachte minuten"
-                                    type="number"
-                                    value={row.expectedMinutes}
-                                    onChange={(e) =>
-                                      updateRosterMinutes(row.weekday, e.target.value)
-                                    }
-                                    fullWidth
-                                    size="small"
-                                  />
-
-                                  <Typography variant="caption" color="text.secondary">
-                                    Vul hier het vaste aantal minuten in voor deze weekdag.
-                                  </Typography>
-                                </Stack>
-                              </Box>
-                            ))}
+                              );
+                            })}
                           </Box>
 
                           <Box>
@@ -678,8 +686,8 @@ export default function EmployeeDetailPage() {
                                 key={day}
                                 sx={{
                                   border: "1px solid",
-                                  borderColor: "divider",
-                                  bgcolor: "grey.100",
+                                  borderColor: "#d9d9d9",
+                                  bgcolor: "#f5f5f5",
                                   px: 1,
                                   py: 1,
                                   minHeight: 44,
@@ -707,9 +715,9 @@ export default function EmployeeDetailPage() {
                                     key={`empty-${index}`}
                                     sx={{
                                       border: "1px solid",
-                                      borderColor: "divider",
+                                      borderColor: "#d9d9d9",
                                       minHeight: 120,
-                                      bgcolor: "grey.50",
+                                      bgcolor: "#d9f2ff",
                                     }}
                                   />
                                 );
@@ -719,23 +727,35 @@ export default function EmployeeDetailPage() {
                               const hasValue = existingMinutes !== undefined;
                               const isPast = isPastDateKey(cell.key);
 
+                              const cellBgColor = isPast
+                                ? "#f7f7f7"
+                                : hasValue && Number(existingMinutes) > 0
+                                ? "#dff3e3"
+                                : "#ffffff";
+
+                              const cellBorderColor = isPast
+                                ? "#d9d9d9"
+                                : hasValue && Number(existingMinutes) > 0
+                                ? "#8bc34a"
+                                : "#d9d9d9";
+
                               return (
                                 <Box
                                   key={cell.key}
                                   onClick={() => openCalendarDay(cell.key)}
                                   sx={{
                                     border: "1px solid",
-                                    borderColor: "divider",
+                                    borderColor: cellBorderColor,
                                     minHeight: 120,
                                     p: 1,
-                                    bgcolor: isPast ? "grey.100" : "common.white",
+                                    bgcolor: cellBgColor,
                                     cursor: isPast ? "default" : "pointer",
-                                    opacity: isPast ? 0.75 : 1,
+                                    opacity: 1,
                                     overflow: "hidden",
                                     "&:hover": isPast
                                       ? {}
                                       : {
-                                          bgcolor: "action.hover",
+                                          filter: "brightness(0.98)",
                                         },
                                   }}
                                 >
@@ -765,7 +785,7 @@ export default function EmployeeDetailPage() {
                                   </Stack>
 
                                   <Box sx={{ mt: 1 }}>
-                                    {hasValue ? (
+                                    {hasValue && Number(existingMinutes) > 0 ? (
                                       <Typography
                                         variant="body2"
                                         color="text.secondary"
