@@ -611,7 +611,7 @@ export default function EmployeeDetailPage() {
                     <Typography variant="h6" fontWeight={700}>
                       Maak een Kalenderperiode aan. 
                     </Typography>
-                    <Typography variant="h6" fontWeight={700}>
+                     <Typography variant="body2" color="text.secondary">
                     Daarna kun je voor elke dag individueel de referentietijd invullen.
                     </Typography>
                     <Card variant="outlined">
