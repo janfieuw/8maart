@@ -703,11 +703,29 @@ export default function EmployeeDetailPage() {
                                   {calendarDraftDays.map((row) => (
                                     <Card key={row.date} variant="outlined">
                                       <CardContent>
-                                        <Box sx={{ minWidth: 180 }}>
-                                          <Typography fontWeight={700}>
-                                            {fmtDate(row.date)}
-                                          </Typography>
-                                        </Box>
+                                        <Stack
+                                          direction={{ xs: "column", md: "row" }}
+                                          spacing={2}
+                                          justifyContent="space-between"
+                                          alignItems={{ xs: "flex-start", md: "center" }}
+                                        >
+                                          <Box sx={{ minWidth: 180 }}>
+                                            <Typography fontWeight={700}>
+                                              {fmtDate(row.date)}
+                                            </Typography>
+                                          </Box>
+
+                                          <TextField
+                                            label="Verwachte minuten"
+                                            type="number"
+                                            value={row.expectedMinutes ?? ""}
+                                            onChange={(e) =>
+                                              updateDraftMinutes(row.date, e.target.value)
+                                            }
+                                            sx={{ width: 240 }}
+                                            placeholder=""
+                                          />
+                                        </Stack>
                                       </CardContent>
                                     </Card>
                                   ))}
