@@ -527,50 +527,97 @@ export default function EmployeeDetailPage() {
 
                 {tab === 1 ? (
                   <Stack spacing={3}>
-                    <Typography variant="h6" fontWeight={700}>
-                      Rooster per weekdag
-                    </Typography>
+                    <Box>
+                      <Typography variant="h6" fontWeight={700}>
+                        Rooster
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Stel hier per weekdag de vaste referentietijd in.
+                      </Typography>
+                    </Box>
 
-                    {rosterDays.map((row) => (
-                      <Card key={row.weekday} variant="outlined">
-                        <CardContent>
-                          <Stack
-                            direction={{ xs: "column", md: "row" }}
-                            spacing={2}
-                            justifyContent="space-between"
-                            alignItems={{ xs: "flex-start", md: "center" }}
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Stack spacing={3}>
+                          <Box
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                              gap: 1,
+                            }}
                           >
-                            <Box sx={{ minWidth: 180 }}>
-                              <Typography fontWeight={700}>
-                                {weekdayLabel(row.weekday)}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                Verwacht: {minutesToHoursLabel(row.expectedMinutes)}
-                              </Typography>
-                            </Box>
+                            {rosterDays.map((row) => (
+                              <Box
+                                key={row.weekday}
+                                sx={{
+                                  border: "1px solid",
+                                  borderColor: "divider",
+                                  minHeight: 180,
+                                  bgcolor: "common.white",
+                                  p: 1,
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    border: "1px solid",
+                                    borderColor: "divider",
+                                    bgcolor: "grey.100",
+                                    px: 1,
+                                    py: 1,
+                                    mb: 1.5,
+                                    minHeight: 44,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={700}
+                                    align="center"
+                                    noWrap
+                                  >
+                                    {weekdayLabel(row.weekday)}
+                                  </Typography>
+                                </Box>
 
-                            <TextField
-                              label="Verwachte minuten"
-                              type="number"
-                              value={row.expectedMinutes}
-                              onChange={(e) =>
-                                updateRosterMinutes(row.weekday, e.target.value)
-                              }
-                              sx={{ width: 220 }}
-                              placeholder=""
-                            />
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    ))}
+                                <Stack spacing={1.5}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Huidig: <strong>{minutesToHoursLabel(row.expectedMinutes)}</strong>
+                                  </Typography>
 
-                    <Button
-                      variant="contained"
-                      onClick={saveRoster}
-                      disabled={savingRoster}
-                    >
-                      {savingRoster ? "Opslaan..." : "Rooster opslaan"}
-                    </Button>
+                                  <TextField
+                                    label="Verwachte minuten"
+                                    type="number"
+                                    value={row.expectedMinutes}
+                                    onChange={(e) =>
+                                      updateRosterMinutes(row.weekday, e.target.value)
+                                    }
+                                    fullWidth
+                                    size="small"
+                                  />
+
+                                  <Typography variant="caption" color="text.secondary">
+                                    Vul hier het vaste aantal minuten in voor deze weekdag.
+                                  </Typography>
+                                </Stack>
+                              </Box>
+                            ))}
+                          </Box>
+
+                          <Box>
+                            <Button
+                              variant="contained"
+                              onClick={saveRoster}
+                              disabled={savingRoster}
+                            >
+                              {savingRoster ? "Opslaan..." : "Rooster opslaan"}
+                            </Button>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
                   </Stack>
                 ) : null}
 
