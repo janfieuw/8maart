@@ -609,9 +609,11 @@ export default function EmployeeDetailPage() {
                 {tab === 2 ? (
                   <Stack spacing={3}>
                     <Typography variant="h6" fontWeight={700}>
-                      Kalenderdagen
+                      Maak een Kalenderperiode aan. 
                     </Typography>
-
+                    <Typography variant="h6" fontWeight={700}>
+                    Daarna kun je voor elke dag individueel de referentietijd invullen.
+                    </Typography>
                     <Card variant="outlined">
                       <CardContent>
                         <Stack spacing={3}>
