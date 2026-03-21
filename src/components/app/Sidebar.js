@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Image from "next/image"; // ✅ toegevoegd
-
 import {
   Box,
   Drawer,
@@ -21,14 +19,17 @@ import PeopleIcon from "@mui/icons-material/People";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import DownloadIcon from "@mui/icons-material/Download";
-import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable"; // ✅ nieuw
 
 const navItems = [
   { label: "Dashboard", href: "/app", icon: <DashboardIcon /> },
   { label: "Werknemers", href: "/app/employees", icon: <PeopleIcon /> },
   { label: "Registraties", href: "/app/records", icon: <ReceiptLongIcon /> },
   { label: "ScanTags", href: "/app/tags", icon: <QrCode2Icon /> },
+
+  // ✅ nieuw: attendance page
   { label: "Attendance", href: "/app/attendance", icon: <EventAvailableIcon /> },
+
   { label: "Export", href: "/app/export", icon: <DownloadIcon /> },
 ];
 
@@ -37,8 +38,6 @@ export default function Sidebar({ drawerWidth, mobileOpen, onClose }) {
 
   const content = (
     <Box sx={{ width: drawerWidth, display: "flex", flexDirection: "column", height: "100%" }}>
-      
-      {/* HEADER */}
       <Toolbar sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: "primary.main" }} />
         <Typography fontWeight={700}>Punctoo</Typography>
@@ -46,7 +45,6 @@ export default function Sidebar({ drawerWidth, mobileOpen, onClose }) {
 
       <Divider />
 
-      {/* NAV */}
       <List sx={{ px: 1, py: 1 }}>
         {navItems.map((item) => {
           const selected =
@@ -68,47 +66,6 @@ export default function Sidebar({ drawerWidth, mobileOpen, onClose }) {
         })}
       </List>
 
-      {/* ✅ CERTIFICATEN / TRUST BADGES */}
-      <Box
-        sx={{
-          mt: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 2,
-          px: 2,
-        }}
-      >
-        <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-          ✔ Veilig & Gecertificeerd
-        </Typography>
-
-        <Image
-          src="/templates/gdpr-logo.png"
-          alt="GDPR Compliant"
-          width={120}
-          height={120}
-          style={{ objectFit: "contain" }}
-        />
-
-        <Image
-          src="/templates/vestatech-audit-logo.png"
-          alt="Audited by Vestatech"
-          width={120}
-          height={120}
-          style={{ objectFit: "contain" }}
-        />
-
-        <Image
-          src="/templates/secured-server.png"
-          alt="Secured Server"
-          width={120}
-          height={120}
-          style={{ objectFit: "contain" }}
-        />
-      </Box>
-
-      {/* FOOTER */}
       <Box sx={{ mt: "auto", p: 2, color: "text.secondary", fontSize: 12 }}>
         v0.1 • MyPunctoo
       </Box>
