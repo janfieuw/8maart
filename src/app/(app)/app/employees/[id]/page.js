@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Alert,
@@ -111,7 +111,6 @@ async function readJson(res) {
 
 export default function EmployeeDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
 
   const [tab, setTab] = useState(0);
@@ -400,7 +399,7 @@ export default function EmployeeDetailPage() {
 
     try {
       if (calendarDraftDays.length === 0) {
-        throw new Error("Genereer eerst een range.");
+        throw new Error("Genereer eerst een periode.");
       }
 
       for (const row of calendarDraftDays) {
@@ -633,7 +632,7 @@ export default function EmployeeDetailPage() {
                               <FormControlLabel
                                 value="range"
                                 control={<Radio />}
-                                label="Range"
+                                label="Periode"
                               />
                             </RadioGroup>
                           </FormControl>
@@ -651,15 +650,6 @@ export default function EmployeeDetailPage() {
                                 onChange={(e) => setCalendarDate(e.target.value)}
                                 InputLabelProps={{ shrink: true }}
                                 sx={{ minWidth: 220 }}
-                              />
-
-                              <TextField
-                                label="Verwachte minuten (optioneel)"
-                                type="number"
-                                value={calendarMinutes}
-                                onChange={(e) => setCalendarMinutes(e.target.value)}
-                                sx={{ minWidth: 220 }}
-                                placeholder=""
                               />
 
                               <Button
@@ -695,17 +685,6 @@ export default function EmployeeDetailPage() {
                                   sx={{ minWidth: 220 }}
                                 />
 
-                                <TextField
-                                  label="Standaard minuten (optioneel)"
-                                  type="number"
-                                  value={calendarRangeDefaultMinutes}
-                                  onChange={(e) =>
-                                    setCalendarRangeDefaultMinutes(e.target.value)
-                                  }
-                                  sx={{ minWidth: 220 }}
-                                  placeholder=""
-                                />
-
                                 <Button
                                   variant="outlined"
                                   onClick={generateCalendarRangeDraft}
@@ -718,35 +697,17 @@ export default function EmployeeDetailPage() {
                               {calendarDraftDays.length > 0 ? (
                                 <Stack spacing={2}>
                                   <Typography variant="subtitle1" fontWeight={700}>
-                                    Range preview
+                                    Periode preview
                                   </Typography>
 
                                   {calendarDraftDays.map((row) => (
                                     <Card key={row.date} variant="outlined">
                                       <CardContent>
-                                        <Stack
-                                          direction={{ xs: "column", md: "row" }}
-                                          spacing={2}
-                                          justifyContent="space-between"
-                                          alignItems={{ xs: "flex-start", md: "center" }}
-                                        >
-                                          <Box sx={{ minWidth: 180 }}>
-                                            <Typography fontWeight={700}>
-                                              {fmtDate(row.date)}
-                                            </Typography>
-                                          </Box>
-
-                                          <TextField
-                                            label="Verwachte minuten (optioneel)"
-                                            type="number"
-                                            value={row.expectedMinutes ?? ""}
-                                            onChange={(e) =>
-                                              updateDraftMinutes(row.date, e.target.value)
-                                            }
-                                            sx={{ width: 260 }}
-                                            placeholder=""
-                                          />
-                                        </Stack>
+                                        <Box sx={{ minWidth: 180 }}>
+                                          <Typography fontWeight={700}>
+                                            {fmtDate(row.date)}
+                                          </Typography>
+                                        </Box>
                                       </CardContent>
                                     </Card>
                                   ))}
@@ -757,7 +718,7 @@ export default function EmployeeDetailPage() {
                                       onClick={saveCalendarRange}
                                       disabled={savingCalendar}
                                     >
-                                      {savingCalendar ? "Opslaan..." : "Range opslaan"}
+                                      {savingCalendar ? "Opslaan..." : "Periode opslaan"}
                                     </Button>
 
                                     <Button
