@@ -26,7 +26,21 @@ function normalizeDateOnly(value) {
   if (Number.isNaN(d.getTime())) {
     throw new Error("Invalid date");
   }
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  );
+}
+
+function getTodayUtcDateOnly() {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+}
+
+function isPastDate(date) {
+  return date.getTime() < getTodayUtcDateOnly().getTime();
 }
 
 export async function POST(req, context) {
@@ -50,7 +64,16 @@ export async function POST(req, context) {
 
     const body = await req.json();
     const date = normalizeDateOnly(body?.date);
+
+    if (isPastDate(date)) {
+      return jsonError("Voorbije dagen kunnen niet aangepast worden", 400);
+    }
+
     const expectedMinutes = Number(body?.expectedMinutes || 0);
+
+    if (Number.isNaN(expectedMinutes) || expectedMinutes < 0) {
+      return jsonError("Invalid expected minutes", 400);
+    }
 
     const calendarDay = await prisma.employeeCalendarDay.upsert({
       where: {
@@ -103,6 +126,10 @@ export async function DELETE(req, context) {
     }
 
     const date = normalizeDateOnly(dateParam);
+
+    if (isPastDate(date)) {
+      return jsonError("Voorbije dagen kunnen niet verwijderd worden", 400);
+    }
 
     await prisma.employeeCalendarDay.deleteMany({
       where: {
