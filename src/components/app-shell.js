@@ -180,7 +180,7 @@ export default function AppShell({ session, children }) {
               width={140}
               height={140}
               style={{
-                width: "140px",
+                width: "70px",
                 height: "auto",
                 objectFit: "contain",
               }}
@@ -200,7 +200,7 @@ export default function AppShell({ session, children }) {
               width={140}
               height={140}
               style={{
-                width: "140px",
+                width: "70px",
                 height: "auto",
                 objectFit: "contain",
               }}
@@ -220,7 +220,7 @@ export default function AppShell({ session, children }) {
               width={140}
               height={100}
               style={{
-                width: "140px",
+                width: "70px",
                 height: "auto",
                 objectFit: "contain",
               }}
