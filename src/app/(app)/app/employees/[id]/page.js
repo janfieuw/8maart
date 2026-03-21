@@ -10,10 +10,6 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControl,
   IconButton,
@@ -29,6 +25,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 
 function fmtDate(value) {
   if (!value) return "-";
@@ -161,7 +158,6 @@ export default function EmployeeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingRoster, setSavingRoster] = useState(false);
-  const [savingCalendar, setSavingCalendar] = useState(false);
 
   const [employee, setEmployee] = useState(null);
   const [rosterDays, setRosterDays] = useState([]);
@@ -178,9 +174,8 @@ export default function EmployeeDetailPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedDateKey, setSelectedDateKey] = useState("");
-  const [selectedMinutes, setSelectedMinutes] = useState("");
+  const [savingCalendarByDate, setSavingCalendarByDate] = useState({});
+  const [calendarDraftMap, setCalendarDraftMap] = useState({});
 
   const emptyRosterTemplate = useMemo(
     () => [
@@ -253,6 +248,15 @@ export default function EmployeeDetailPage() {
 
       setRosterDays(mergedRoster);
       setCalendarDays(sortedCalendar);
+
+      const nextDraftMap = {};
+      for (const day of sortedCalendar) {
+        const key = extractDateKey(day?.date);
+        if (!key) continue;
+        nextDraftMap[key] =
+          day?.expectedMinutes == null ? "" : String(day.expectedMinutes);
+      }
+      setCalendarDraftMap(nextDraftMap);
     } catch (e) {
       setEmployee(null);
       setRosterDays([]);
@@ -345,36 +349,31 @@ export default function EmployeeDetailPage() {
     }
   }
 
-  function openCalendarDay(dateKey) {
-    if (!dateKey || isPastDateKey(dateKey)) return;
-
-    setSelectedDateKey(dateKey);
-    const currentValue = calendarMap[dateKey];
-    setSelectedMinutes(
-      currentValue === undefined || currentValue === null ? "" : String(currentValue)
-    );
-    setDialogOpen(true);
+  function updateCalendarDraft(dateKey, value) {
+    setCalendarDraftMap((prev) => ({
+      ...prev,
+      [dateKey]: value,
+    }));
   }
 
-  function closeCalendarDialog() {
-    if (savingCalendar) return;
-    setDialogOpen(false);
-    setSelectedDateKey("");
-    setSelectedMinutes("");
-  }
+  async function saveCalendarDay(dateKey) {
+    if (!id || !dateKey || isPastDateKey(dateKey)) return;
 
-  async function saveCalendarDay() {
-    if (!id || !selectedDateKey) return;
-
-    setSavingCalendar(true);
+    setSavingCalendarByDate((prev) => ({
+      ...prev,
+      [dateKey]: true,
+    }));
     setErr("");
     setInfo("");
 
     try {
+      const rawValue =
+        calendarDraftMap[dateKey] === undefined ? "" : calendarDraftMap[dateKey];
+
       let expectedMinutes = 0;
 
-      if (selectedMinutes !== "" && selectedMinutes != null) {
-        expectedMinutes = Number(selectedMinutes);
+      if (rawValue !== "" && rawValue != null) {
+        expectedMinutes = Number(rawValue);
 
         if (Number.isNaN(expectedMinutes) || expectedMinutes < 0) {
           throw new Error("Verwachte minuten mogen niet negatief zijn.");
@@ -385,26 +384,31 @@ export default function EmployeeDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          date: selectedDateKey,
+          date: dateKey,
           expectedMinutes,
         }),
       });
 
       await readJson(res);
-      setInfo("Kalenderdag opgeslagen.");
-      closeCalendarDialog();
+      setInfo(`Kalenderdag ${fmtDate(dateKey)} opgeslagen.`);
       await loadEmployee();
     } catch (e) {
       setErr(e?.message || "Kalenderdag opslaan mislukt.");
     } finally {
-      setSavingCalendar(false);
+      setSavingCalendarByDate((prev) => ({
+        ...prev,
+        [dateKey]: false,
+      }));
     }
   }
 
-  async function deleteCalendarDay(dateKey) {
+  async function clearCalendarDay(dateKey) {
     if (!id || !dateKey || isPastDateKey(dateKey)) return;
 
-    setSavingCalendar(true);
+    setSavingCalendarByDate((prev) => ({
+      ...prev,
+      [dateKey]: true,
+    }));
     setErr("");
     setInfo("");
 
@@ -417,13 +421,20 @@ export default function EmployeeDetailPage() {
       );
 
       await readJson(res);
-      setInfo("Kalenderdag verwijderd.");
-      closeCalendarDialog();
+      setCalendarDraftMap((prev) => {
+        const next = { ...prev };
+        delete next[dateKey];
+        return next;
+      });
+      setInfo(`Kalenderdag ${fmtDate(dateKey)} verwijderd.`);
       await loadEmployee();
     } catch (e) {
       setErr(e?.message || "Kalenderdag verwijderen mislukt.");
     } finally {
-      setSavingCalendar(false);
+      setSavingCalendarByDate((prev) => ({
+        ...prev,
+        [dateKey]: false,
+      }));
     }
   }
 
@@ -440,34 +451,29 @@ export default function EmployeeDetailPage() {
       <Card>
         <CardContent>
           <Stack spacing={3}>
-            <Stack
-              direction="row"
-              alignItems="flex-start"
-              justifyContent="space-between"
-              spacing={2}
-            >
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Button
-                  component={Link}
-                  href="/app/employees"
-                  variant="text"
-                  startIcon={<ArrowBackIcon />}
-                >
-                  Terug
-                </Button>
+            <Stack direction="row" alignItems="flex-start" spacing={2}>
+              <Button
+                component={Link}
+                href="/app/employees"
+                variant="text"
+                startIcon={<ArrowBackIcon />}
+              >
+                Terug
+              </Button>
 
-                <Box>
-                  <Typography variant="h4" fontWeight={800}>
-                    Werknemer detail
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Profiel + planning ({expectedModeLabel(expectedMode)})
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Employee ID: {id || "-"}
-                  </Typography>
-                </Box>
-              </Stack>
+              <Box>
+                <Typography variant="h4" fontWeight={800}>
+                  Werknemer detail
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Kies hieronder hoe je de referentieduur wil instellen.
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Een leeg vak wordt automatisch gelijkgesteld aan 0 minuten.
+                  Invullen mag dus, maar is niet verplicht. Zodra je bewust invult,
+                  wordt het vak groen.
+                </Typography>
+              </Box>
             </Stack>
 
             <Divider />
@@ -536,6 +542,25 @@ export default function EmployeeDetailPage() {
                       </Typography>
                     </Box>
 
+                    <Alert
+                      icon={<LightbulbOutlinedIcon />}
+                      severity="info"
+                      sx={{
+                        alignItems: "flex-start",
+                        "& .MuiAlert-message": { width: "100%" },
+                      }}
+                    >
+                      <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                        Tip
+                      </Typography>
+                      <Typography variant="body2">
+                        Is er een occasionele wissel van werkdag, dan hoef je niet per
+                        se het rooster aan te passen. De uitzonderlijke werkdag wordt
+                        dan automatisch overtijd, de normale niet-werkdag wordt
+                        ondertijd waardoor dit elkaar opheft.
+                      </Typography>
+                    </Alert>
+
                     <Card variant="outlined">
                       <CardContent>
                         <Stack spacing={3}>
@@ -547,19 +572,18 @@ export default function EmployeeDetailPage() {
                             }}
                           >
                             {rosterDays.map((row) => {
-                              const hasPositiveValue =
+                              const isFilled =
                                 row.expectedMinutes !== "" &&
-                                row.expectedMinutes != null &&
-                                Number(row.expectedMinutes) > 0;
+                                row.expectedMinutes != null;
 
                               return (
                                 <Box
                                   key={row.weekday}
                                   sx={{
                                     border: "1px solid",
-                                    borderColor: hasPositiveValue ? "#8bc34a" : "#d9d9d9",
+                                    borderColor: isFilled ? "#8bc34a" : "#d9d9d9",
                                     minHeight: 180,
-                                    bgcolor: hasPositiveValue ? "#dff3e3" : "#ffffff",
+                                    bgcolor: isFilled ? "#dff3e3" : "#ffffff",
                                     p: 1,
                                     overflow: "hidden",
                                   }}
@@ -636,8 +660,9 @@ export default function EmployeeDetailPage() {
                         Kalender
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Klik op een dag om de referentietijd in te vullen. Voorbije dagen
-                        kunnen niet aangepast worden.
+                        Vul rechtstreeks in het vak de referentietijd in. Voorbije dagen
+                        kunnen niet aangepast worden. Een leeg vak blijft automatisch 0
+                        minuten.
                       </Typography>
                     </Box>
 
@@ -716,7 +741,7 @@ export default function EmployeeDetailPage() {
                                     sx={{
                                       border: "1px solid",
                                       borderColor: "#d9d9d9",
-                                      minHeight: 120,
+                                      minHeight: 190,
                                       bgcolor: "#d9f2ff",
                                     }}
                                   />
@@ -726,37 +751,37 @@ export default function EmployeeDetailPage() {
                               const existingMinutes = calendarMap[cell.key];
                               const hasValue = existingMinutes !== undefined;
                               const isPast = isPastDateKey(cell.key);
+                              const draftValue =
+                                calendarDraftMap[cell.key] === undefined
+                                  ? hasValue
+                                    ? String(existingMinutes)
+                                    : ""
+                                  : calendarDraftMap[cell.key];
+
+                              const isFilled = hasValue || draftValue !== "";
 
                               const cellBgColor = isPast
                                 ? "#f7f7f7"
-                                : hasValue && Number(existingMinutes) > 0
+                                : isFilled
                                 ? "#dff3e3"
                                 : "#ffffff";
 
                               const cellBorderColor = isPast
                                 ? "#d9d9d9"
-                                : hasValue && Number(existingMinutes) > 0
+                                : isFilled
                                 ? "#8bc34a"
                                 : "#d9d9d9";
 
                               return (
                                 <Box
                                   key={cell.key}
-                                  onClick={() => openCalendarDay(cell.key)}
                                   sx={{
                                     border: "1px solid",
                                     borderColor: cellBorderColor,
-                                    minHeight: 120,
+                                    minHeight: 190,
                                     p: 1,
                                     bgcolor: cellBgColor,
-                                    cursor: isPast ? "default" : "pointer",
-                                    opacity: 1,
                                     overflow: "hidden",
-                                    "&:hover": isPast
-                                      ? {}
-                                      : {
-                                          filter: "brightness(0.98)",
-                                        },
                                   }}
                                 >
                                   <Stack
@@ -784,26 +809,70 @@ export default function EmployeeDetailPage() {
                                     ) : null}
                                   </Stack>
 
-                                  <Box sx={{ mt: 1 }}>
-                                    {hasValue && Number(existingMinutes) > 0 ? (
-                                      <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ wordBreak: "break-word" }}
-                                      >
-                                        Referentietijd:{" "}
-                                        <strong>{minutesToHoursLabel(existingMinutes)}</strong>
-                                      </Typography>
+                                  <Stack spacing={1.2} sx={{ mt: 1 }}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                      sx={{ wordBreak: "break-word" }}
+                                    >
+                                      Referentietijd:{" "}
+                                      <strong>
+                                        {hasValue
+                                          ? minutesToHoursLabel(existingMinutes)
+                                          : "0 u"}
+                                      </strong>
+                                    </Typography>
+
+                                    {!isPast ? (
+                                      <>
+                                        <TextField
+                                          label="Verwachte minuten"
+                                          type="number"
+                                          value={draftValue}
+                                          onChange={(e) =>
+                                            updateCalendarDraft(cell.key, e.target.value)
+                                          }
+                                          fullWidth
+                                          size="small"
+                                        />
+
+                                        <Stack direction="row" spacing={1}>
+                                          <Button
+                                            variant="contained"
+                                            size="small"
+                                            onClick={() => saveCalendarDay(cell.key)}
+                                            disabled={!!savingCalendarByDate[cell.key]}
+                                          >
+                                            {savingCalendarByDate[cell.key]
+                                              ? "..."
+                                              : "Opslaan"}
+                                          </Button>
+
+                                          {hasValue ? (
+                                            <Button
+                                              variant="text"
+                                              color="error"
+                                              size="small"
+                                              onClick={() => clearCalendarDay(cell.key)}
+                                              disabled={!!savingCalendarByDate[cell.key]}
+                                            >
+                                              Wissen
+                                            </Button>
+                                          ) : null}
+                                        </Stack>
+                                      </>
                                     ) : (
-                                      <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ wordBreak: "break-word" }}
-                                      >
-                                        Geen tijd ingesteld
+                                      <Typography variant="caption" color="text.secondary">
+                                        Voorbije dagen zijn niet wijzigbaar.
                                       </Typography>
                                     )}
-                                  </Box>
+
+                                    {!isPast ? (
+                                      <Typography variant="caption" color="text.secondary">
+                                        Leeg = 0 minuten.
+                                      </Typography>
+                                    ) : null}
+                                  </Stack>
                                 </Box>
                               );
                             })}
@@ -811,60 +880,6 @@ export default function EmployeeDetailPage() {
                         </Stack>
                       </CardContent>
                     </Card>
-
-                    <Dialog
-                      open={dialogOpen}
-                      onClose={closeCalendarDialog}
-                      fullWidth
-                      maxWidth="xs"
-                    >
-                      <DialogTitle>{fmtDate(selectedDateKey)}</DialogTitle>
-
-                      <DialogContent>
-                        <Stack spacing={2} sx={{ pt: 1 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Vul de referentietijd in minuten in.
-                          </Typography>
-
-                          <TextField
-                            label="Verwachte minuten"
-                            type="number"
-                            value={selectedMinutes}
-                            onChange={(e) => setSelectedMinutes(e.target.value)}
-                            fullWidth
-                          />
-                        </Stack>
-                      </DialogContent>
-
-                      <DialogActions
-                        sx={{ px: 3, pb: 3, justifyContent: "space-between" }}
-                      >
-                        <Box>
-                          {selectedDateKey && calendarMap[selectedDateKey] !== undefined ? (
-                            <Button
-                              color="error"
-                              onClick={() => deleteCalendarDay(selectedDateKey)}
-                              disabled={savingCalendar}
-                            >
-                              Verwijderen
-                            </Button>
-                          ) : null}
-                        </Box>
-
-                        <Stack direction="row" spacing={1}>
-                          <Button onClick={closeCalendarDialog} disabled={savingCalendar}>
-                            Annuleren
-                          </Button>
-                          <Button
-                            variant="contained"
-                            onClick={saveCalendarDay}
-                            disabled={savingCalendar}
-                          >
-                            {savingCalendar ? "Opslaan..." : "Opslaan"}
-                          </Button>
-                        </Stack>
-                      </DialogActions>
-                    </Dialog>
                   </Stack>
                 ) : null}
               </>
