@@ -229,7 +229,6 @@ export default function PublicScanPage() {
       setSuccess({
         pairedOnly: true,
         employee: data?.employee || null,
-        timestamp: new Date().toISOString(),
       });
     } catch (e) {
       setError(e?.message || "Koppelen mislukt.");
@@ -271,9 +270,7 @@ export default function PublicScanPage() {
     error && !isPairingRequiredError(error) ? error : "";
 
   const employeeName = success?.employee?.name || null;
-  const timestamp =
-    success?.scannedAt || success?.timestamp || null;
-
+  const timestamp = success?.scannedAt || null;
   const formatted = formatBelgianDateTime(timestamp);
 
   return (
@@ -312,12 +309,6 @@ export default function PublicScanPage() {
                   {employeeName && (
                     <Typography variant="h6">
                       {employeeName}
-                    </Typography>
-                  )}
-
-                  {formatted && (
-                    <Typography variant="body1" color="text.secondary">
-                      {formatted.formattedDate} • {formatted.formattedTime}
                     </Typography>
                   )}
 
