@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import DownloadIcon from "@mui/icons-material/Download";
+import SmartphoneIcon from "@mui/icons-material/Smartphone";
 
 function getBaseUrl() {
   return (
@@ -82,6 +83,7 @@ export default async function ScanTagPage() {
           </Typography>
         </Box>
 
+        {/* BEDRIJF */}
         <Card
           sx={{
             borderRadius: "16px",
@@ -111,7 +113,6 @@ export default async function ScanTagPage() {
             {inTag && outTag ? (
               <Button
                 variant="contained"
-                color="success"
                 startIcon={<DownloadIcon />}
                 href="/api/scantag/download"
               >
@@ -120,6 +121,32 @@ export default async function ScanTagPage() {
             ) : null}
           </CardContent>
         </Card>
+
+        {/* INFO BLOK */}
+        <Box
+          sx={{
+            backgroundColor: "#e3f2fd",
+            borderRadius: "12px",
+            p: 3,
+            display: "flex",
+            gap: 2,
+            alignItems: "flex-start",
+          }}
+        >
+          <SmartphoneIcon sx={{ color: "#1976d2", mt: "2px" }} />
+
+          <Box>
+            <Typography sx={{ fontWeight: 700, mb: 0.5 }}>
+              Toestel koppelen
+            </Typography>
+
+            <Typography sx={{ color: "#1f2937" }}>
+              Open de camera op je smartphone en scan een QR-code om dit toestel te koppelen.
+              <br />
+              Je wordt gevraagd om een koppelcode in te voeren. Deze vind je op de pagina "Werknemers".
+            </Typography>
+          </Box>
+        </Box>
 
         {!inTag || !outTag ? (
           <Card
@@ -162,7 +189,6 @@ export default async function ScanTagPage() {
 
                     <Button
                       variant="contained"
-                      color="success"
                       startIcon={<QrCode2Icon />}
                       href={qrImageUrl(inTag.secret)}
                       download
@@ -199,7 +225,6 @@ export default async function ScanTagPage() {
 
                     <Button
                       variant="contained"
-                      color="success"
                       startIcon={<QrCode2Icon />}
                       href={qrImageUrl(outTag.secret)}
                       download
