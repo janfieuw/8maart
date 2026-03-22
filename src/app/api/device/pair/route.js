@@ -27,29 +27,16 @@ export async function POST(req) {
     const deviceToken = String(body?.deviceToken || "").trim();
     const secret = String(body?.secret || "").trim();
 
-    if (!pairCode) {
-      return jsonError("PairCode ontbreekt", 400);
-    }
-
-    if (!deviceToken) {
-      return jsonError("DeviceToken ontbreekt", 400);
-    }
-
-    if (!secret) {
-      return jsonError("Secret ontbreekt", 400);
-    }
+    if (!pairCode) return jsonError("PairCode ontbreekt", 400);
+    if (!deviceToken) return jsonError("DeviceToken ontbreekt", 400);
+    if (!secret) return jsonError("Secret ontbreekt", 400);
 
     const tag = await prisma.scanTag.findUnique({
       where: { secret },
     });
 
-    if (!tag) {
-      return jsonError("Tag niet gevonden", 404);
-    }
-
-    if (!tag.companyId) {
-      return jsonError("Tag is ongeldig", 500);
-    }
+    if (!tag) return jsonError("Tag niet gevonden", 404);
+    if (!tag.companyId) return jsonError("Tag is ongeldig", 500);
 
     const companyId = tag.companyId;
 
@@ -61,15 +48,24 @@ export async function POST(req) {
       },
     });
 
-    if (!employee) {
-      return jsonError("Ongeldige PairCode", 404);
+    if (!employee) return jsonError("Ongeldige PairCode", 404);
+
+    // 🔥 NIEUW: check of werknemer al device heeft
+    const existingForEmployee = await prisma.device.findUnique({
+      where: { employeeId: employee.id },
+    });
+
+    if (existingForEmployee) {
+      // oude device verwijderen (overschrijven)
+      await prisma.device.delete({
+        where: { employeeId: employee.id },
+      });
     }
 
+    // 🔥 bestaande deviceToken van ander bedrijf verwijderen (zoals je al deed)
     const existingDevice = await prisma.device.findUnique({
       where: { deviceToken },
-      include: {
-        employee: true,
-      },
+      include: { employee: true },
     });
 
     if (existingDevice && existingDevice.employee.companyId !== companyId) {
@@ -78,12 +74,9 @@ export async function POST(req) {
       });
     }
 
-    const device = await prisma.device.upsert({
-      where: { deviceToken },
-      update: {
-        employeeId: employee.id,
-      },
-      create: {
+    // 🔥 nieuw device maken (geen upsert meer!)
+    const device = await prisma.device.create({
+      data: {
         deviceToken,
         employeeId: employee.id,
       },

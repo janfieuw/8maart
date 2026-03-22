@@ -70,7 +70,7 @@ model Employee {
   expectedMode   ExpectedMode          @default(ROSTER)
 
   company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  devices        Device[]
+  device         Device?
   calendarDays   EmployeeCalendarDay[]
   rosterDays     EmployeeRosterDay[]
   scanEvents     ScanEvent[]
@@ -84,13 +84,11 @@ model Employee {
 
 model Device {
   id          String   @id @default(cuid())
-  employeeId  String
+  employeeId  String   @unique
   deviceToken String   @unique
   createdAt   DateTime @default(now())
 
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
 }
 
 model EmployeeRosterDay {
