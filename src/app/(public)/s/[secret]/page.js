@@ -55,6 +55,27 @@ function getSuccessTitle(type) {
   return "SCAN IN GESLAAGD";
 }
 
+function formatBelgianDateTime(timestamp) {
+  if (!timestamp) return null;
+
+  const date = new Date(timestamp);
+
+  const formattedDate = date.toLocaleDateString("nl-BE", {
+    timeZone: "Europe/Brussels",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const formattedTime = date.toLocaleTimeString("nl-BE", {
+    timeZone: "Europe/Brussels",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return { formattedDate, formattedTime };
+}
+
 function canScanNow() {
   try {
     const last = Number(localStorage.getItem(SCAN_LOCK_KEY) || 0);
@@ -200,12 +221,15 @@ export default function PublicScanPage() {
         }),
       });
 
-      await readJson(pairRes);
+      const data = await readJson(pairRes);
 
       setDeviceJustPaired(true);
       setError("");
+
       setSuccess({
         pairedOnly: true,
+        employee: data?.employee || null,
+        timestamp: new Date().toISOString(),
       });
     } catch (e) {
       setError(e?.message || "Koppelen mislukt.");
@@ -246,6 +270,12 @@ export default function PublicScanPage() {
   const pairingError =
     error && !isPairingRequiredError(error) ? error : "";
 
+  const employeeName = success?.employee?.name || null;
+  const timestamp =
+    success?.scannedAt || success?.timestamp || null;
+
+  const formatted = formatBelgianDateTime(timestamp);
+
   return (
     <Box
       sx={{
@@ -279,6 +309,18 @@ export default function PublicScanPage() {
                     SMARTPHONE SUCCESVOL GEKOPPELD
                   </Typography>
 
+                  {employeeName && (
+                    <Typography variant="h6">
+                      {employeeName}
+                    </Typography>
+                  )}
+
+                  {formatted && (
+                    <Typography variant="body1" color="text.secondary">
+                      {formatted.formattedDate} • {formatted.formattedTime}
+                    </Typography>
+                  )}
+
                   <Typography variant="h6" color="text.secondary">
                     Scan nu opnieuw de QR-code
                   </Typography>
@@ -306,6 +348,18 @@ export default function PublicScanPage() {
                   <Typography variant="h4" fontWeight={900}>
                     {getSuccessTitle(success?.type)}
                   </Typography>
+
+                  {employeeName && (
+                    <Typography variant="h5">
+                      {employeeName}
+                    </Typography>
+                  )}
+
+                  {formatted && (
+                    <Typography variant="body1" color="text.secondary">
+                      {formatted.formattedDate} • {formatted.formattedTime}
+                    </Typography>
+                  )}
                 </Stack>
               </CardContent>
             </Card>
