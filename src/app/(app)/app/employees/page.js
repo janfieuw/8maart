@@ -197,81 +197,72 @@ export default function EmployeesPage() {
       <Card>
         <CardContent>
           <Stack spacing={2.5}>
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              justifyContent="space-between"
-              alignItems={{ xs: "stretch", md: "flex-start" }}
-              spacing={2}
+            <Box>
+              <Typography variant="h4" fontWeight={800}>
+                Werknemers
+              </Typography>
+
+              <Typography variant="body2" color="text.secondary">
+                Beheer werknemers, Koppel codes en tijdensysteem
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                backgroundColor: "#e3f2fd",
+                borderRadius: "12px",
+                px: 2.25,
+                py: 1.75,
+                display: "flex",
+                gap: 1.5,
+                alignItems: "flex-start",
+              }}
             >
+              <SmartphoneIcon
+                sx={{
+                  color: "#1e88e5",
+                  fontSize: 22,
+                  mt: "1px",
+                  flexShrink: 0,
+                }}
+              />
+
               <Box>
-                <Typography variant="h4" fontWeight={800}>
-                  Werknemers
-                </Typography>
-
-                <Typography variant="body2" color="text.secondary">
-                  Beheer werknemers, Koppel codes en tijdensysteem
-                </Typography>
-
-                {/* NIEUW INFO BLOK */}
-                <Box
+                <Typography
                   sx={{
-                    backgroundColor: "#e3f2fd",
-                    borderRadius: "12px",
-                    px: 2.25,
-                    py: 1.75,
-                    display: "flex",
-                    gap: 1.5,
-                    alignItems: "flex-start",
-                    mt: 1,
+                    fontWeight: 700,
+                    fontSize: "0.95rem",
+                    lineHeight: 1.35,
+                    color: "#0b4f71",
+                    mb: 0.25,
                   }}
                 >
-                  <SmartphoneIcon
-                    sx={{
-                      color: "#1e88e5",
-                      fontSize: 22,
-                      mt: "1px",
-                      flexShrink: 0,
-                    }}
-                  />
+                  Smartphone koppelen
+                </Typography>
 
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontWeight: 700,
-                        fontSize: "0.95rem",
-                        lineHeight: 1.35,
-                        color: "#0b4f71",
-                        mb: 0.25,
-                      }}
-                    >
-                      Smartphone koppelen
-                    </Typography>
-
-                    <Typography
-                      sx={{
-                        fontSize: "0.95rem",
-                        lineHeight: 1.45,
-                        color: "#0b4f71",
-                      }}
-                    >
-                      De koppel code heeft de werknemer straks nodig om zijn smartphone éénmalig te koppelen.
-                      Het koppelen kan op de pagina "Scan Tag".
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button
-                  component={Link}
-                  href="/app/employees/new"
-                  variant="contained"
-                  startIcon={<AddIcon />}
+                <Typography
+                  sx={{
+                    fontSize: "0.95rem",
+                    lineHeight: 1.45,
+                    color: "#0b4f71",
+                  }}
                 >
-                  Nieuwe werknemer
-                </Button>
-              </Stack>
-            </Stack>
+                  De koppel code heeft de werknemer straks nodig om zijn smartphone éénmalig te koppelen.
+                  Het koppelen kan op de pagina "Scan Tag".
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box>
+              <Button
+                component={Link}
+                href="/app/employees/new"
+                variant="contained"
+                startIcon={<AddIcon />}
+              >
+                Werknemer toevoegen
+              </Button>
+            </Box>
 
             {err ? <Alert severity="error">{err}</Alert> : null}
             {info ? <Alert severity="success">{info}</Alert> : null}
