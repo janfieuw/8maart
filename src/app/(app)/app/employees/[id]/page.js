@@ -11,11 +11,7 @@ import {
   CardContent,
   CircularProgress,
   Divider,
-  FormControl,
   IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   Tab,
   Tabs,
@@ -66,12 +62,6 @@ function minutesToHoursLabel(minutes) {
   if (Number.isNaN(value)) return "-";
   const hours = value / 60;
   return `${hours} u`;
-}
-
-function expectedModeLabel(value) {
-  if (value === "ROSTER") return "Rooster";
-  if (value === "CALENDAR") return "Kalender";
-  return "Geen tijdensysteem";
 }
 
 function monthTitle(date) {
@@ -157,15 +147,11 @@ export default function EmployeeDetailPage() {
   const [tab, setTab] = useState(0);
 
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
   const [savingRoster, setSavingRoster] = useState(false);
 
   const [employee, setEmployee] = useState(null);
   const [rosterDays, setRosterDays] = useState([]);
   const [calendarDays, setCalendarDays] = useState([]);
-
-  const [name, setName] = useState("");
-  const [expectedMode, setExpectedMode] = useState("");
 
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
@@ -224,8 +210,6 @@ export default function EmployeeDetailPage() {
       const row = data.employee || null;
 
       setEmployee(row);
-      setName(row?.name || "");
-      setExpectedMode(row?.expectedMode || "");
 
       const apiRoster = Array.isArray(row?.rosterDays) ? row.rosterDays : [];
       const apiCalendar = Array.isArray(row?.calendarDays) ? row.calendarDays : [];
@@ -271,40 +255,6 @@ export default function EmployeeDetailPage() {
   useEffect(() => {
     loadEmployee();
   }, [id]);
-
-  async function saveProfile() {
-    if (!id) return;
-
-    setSavingProfile(true);
-    setErr("");
-    setInfo("");
-
-    try {
-      const payload = {
-        name,
-        expectedMode: expectedMode || null,
-      };
-
-      const res = await fetch(`/api/employees/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await readJson(res);
-      const row = data.employee || null;
-
-      setEmployee(row);
-      setName(row?.name || "");
-      setExpectedMode(row?.expectedMode || "");
-
-      setInfo("Profiel opgeslagen.");
-    } catch (e) {
-      setErr(e?.message || "Profiel opslaan mislukt.");
-    } finally {
-      setSavingProfile(false);
-    }
-  }
 
   function updateRosterMinutes(weekday, value) {
     setRosterDays((prev) =>
@@ -503,7 +453,6 @@ export default function EmployeeDetailPage() {
             <Divider />
 
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-              <Tab label="PROFIEL" />
               <Tab label="ROOSTER" />
               <Tab label="KALENDER" />
             </Tabs>
@@ -521,41 +470,6 @@ export default function EmployeeDetailPage() {
             ) : (
               <>
                 {tab === 0 ? (
-                  <Stack spacing={3}>
-                    <TextField
-                      label="Naam"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      fullWidth
-                    />
-
-                    <FormControl fullWidth>
-                      <InputLabel id="expected-mode-label">Tijdensysteem</InputLabel>
-                      <Select
-                        labelId="expected-mode-label"
-                        value={expectedMode}
-                        label="Tijdensysteem"
-                        onChange={(e) => setExpectedMode(e.target.value)}
-                      >
-                        <MenuItem value="">
-                          <em>Geen</em>
-                        </MenuItem>
-                        <MenuItem value="ROSTER">Rooster</MenuItem>
-                        <MenuItem value="CALENDAR">Kalender</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    <Button
-                      variant="contained"
-                      onClick={saveProfile}
-                      disabled={savingProfile}
-                    >
-                      {savingProfile ? "Opslaan..." : "Profiel opslaan"}
-                    </Button>
-                  </Stack>
-                ) : null}
-
-                {tab === 1 ? (
                   <Stack spacing={3}>
                     <Box>
                       <Typography variant="h6" fontWeight={700}>
@@ -677,7 +591,7 @@ export default function EmployeeDetailPage() {
                   </Stack>
                 ) : null}
 
-                {tab === 2 ? (
+                {tab === 1 ? (
                   <Stack spacing={3}>
                     <Box>
                       <Typography variant="h6" fontWeight={700}>
