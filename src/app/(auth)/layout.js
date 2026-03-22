@@ -69,7 +69,7 @@ export default function AuthLayout({ children }) {
                 }}
               >
                 <Image
-                  src="/templates/hero.png"
+                  src="/templates/heroo.png"
                   alt="MyPunctoo hero"
                   width={600}
                   height={600}
