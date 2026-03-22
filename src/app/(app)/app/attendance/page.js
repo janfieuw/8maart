@@ -212,7 +212,7 @@ export default async function AttendancePage({ searchParams }) {
                   <TableRow>
                     <TableCell>Datum</TableCell>
                     <TableCell>Werknemer</TableCell>
-                    <TableCell>Koppel code</TableCell>
+                    <TableCell>Koppel Code</TableCell>
                     <TableCell>Referentietijd</TableCell>
                     <TableCell>Aanwezigheid</TableCell>
                     <TableCell>Verschil</TableCell>
