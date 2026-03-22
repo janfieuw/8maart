@@ -13,11 +13,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CheckIcon from "@mui/icons-material/Check";
 import { getOrCreateDeviceToken } from "@/lib/device-token";
 
 const SCAN_LOCK_KEY = "punctoo_scan_lock";
 const SCAN_COOLDOWN_MS = 5000;
+const BLUE = "#0c4e5f";
 
 async function readJson(res) {
   const text = await res.text();
@@ -55,6 +56,10 @@ function getSuccessTitle(type) {
   return "SCAN IN GESLAAGD";
 }
 
+function isScanOut(type) {
+  return String(type || "").trim().toLowerCase() === "out";
+}
+
 function formatBelgianDateTime(timestamp) {
   if (!timestamp) return null;
 
@@ -90,6 +95,24 @@ function setScanLock() {
   try {
     localStorage.setItem(SCAN_LOCK_KEY, String(Date.now()));
   } catch {}
+}
+
+function SuccessIcon({ color }) {
+  return (
+    <Box
+      sx={{
+        width: 64,
+        height: 64,
+        borderRadius: "50%",
+        bgcolor: color,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <CheckIcon sx={{ color: "#fff", fontSize: 36 }} />
+    </Box>
+  );
 }
 
 export default function PublicScanPage() {
@@ -273,6 +296,20 @@ export default function PublicScanPage() {
   const timestamp = success?.scannedAt || null;
   const formatted = formatBelgianDateTime(timestamp);
 
+  const isOut = isScanOut(success?.type);
+
+  const borderColor = success?.pairedOnly
+    ? "success.main"
+    : isOut
+    ? BLUE
+    : "success.main";
+
+  const iconColor = success?.pairedOnly
+    ? "#2e7d32"
+    : isOut
+    ? BLUE
+    : "#2e7d32";
+
   return (
     <Box
       sx={{
@@ -291,16 +328,13 @@ export default function PublicScanPage() {
               sx={{
                 borderRadius: 4,
                 border: "3px solid",
-                borderColor: "success.main",
+                borderColor: borderColor,
                 textAlign: "center",
               }}
             >
               <CardContent sx={{ p: 5 }}>
                 <Stack spacing={3} alignItems="center">
-                  <CheckCircleOutlineIcon
-                    color="success"
-                    sx={{ fontSize: 50 }}
-                  />
+                  <SuccessIcon color={iconColor} />
 
                   <Typography variant="h4" fontWeight={900}>
                     SMARTPHONE SUCCESVOL GEKOPPELD
@@ -325,16 +359,13 @@ export default function PublicScanPage() {
               sx={{
                 borderRadius: 4,
                 border: "3px solid",
-                borderColor: "success.main",
+                borderColor: borderColor,
                 textAlign: "center",
               }}
             >
               <CardContent sx={{ p: 5 }}>
                 <Stack spacing={3} alignItems="center">
-                  <CheckCircleOutlineIcon
-                    color="success"
-                    sx={{ fontSize: 50 }}
-                  />
+                  <SuccessIcon color={iconColor} />
 
                   <Typography variant="h4" fontWeight={900}>
                     {getSuccessTitle(success?.type)}
