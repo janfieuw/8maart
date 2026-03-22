@@ -254,7 +254,7 @@ export default function EmployeesPage() {
                         color: "#0b4f71",
                       }}
                     >
-                      De koppelcode heb je nodig om de smartphone éénmalig te koppelen.
+                      De koppel code heeft de werknemer straks nodig om zijn smartphone éénmalig te koppelen.
                       Het koppelen kan op de pagina "Scan Tag".
                     </Typography>
                   </Box>
