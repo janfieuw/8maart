@@ -8,7 +8,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   FormControl,
   IconButton,
   InputLabel,
@@ -51,24 +50,15 @@ async function readJson(res) {
   return data;
 }
 
-function expectedModeChip(mode) {
-  const value = String(mode || "").toUpperCase();
+function normalizeExpectedMode(value) {
+  const mode = String(value || "").toUpperCase();
+  if (mode === "CALENDAR") return "CALENDAR";
+  return "ROSTER";
+}
 
-  const label =
-    value === "ROSTER"
-      ? "ROOSTER"
-      : value === "CALENDAR"
-      ? "KALENDER"
-      : value || "-";
-
-  const color =
-    value === "ROSTER"
-      ? "info"
-      : value === "CALENDAR"
-      ? "secondary"
-      : "default";
-
-  return <Chip size="small" label={label} color={color} variant="outlined" />;
+function expectedModeLabel(value) {
+  const mode = normalizeExpectedMode(value);
+  return mode === "CALENDAR" ? "KALENDER" : "ROOSTER";
 }
 
 export default function EmployeesPage() {
@@ -135,6 +125,47 @@ export default function EmployeesPage() {
       setInfo(`Werknemer ${!row.active ? "geactiveerd" : "gedeactiveerd"}.`);
     } catch (e) {
       setErr(e?.message || "Status wijzigen mislukt.");
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  async function changeExpectedMode(row, nextMode) {
+    const normalized = normalizeExpectedMode(nextMode);
+
+    if (normalizeExpectedMode(row.expectedMode) === normalized) return;
+
+    setSavingId(row.id);
+    setErr("");
+    setInfo("");
+
+    try {
+      const res = await fetch(`/api/employees/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expectedMode: normalized,
+        }),
+      });
+
+      await readJson(res);
+
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? {
+                ...r,
+                expectedMode: normalized,
+              }
+            : r
+        )
+      );
+
+      setInfo(
+        `Tijdensysteem aangepast naar ${expectedModeLabel(normalized)}.`
+      );
+    } catch (e) {
+      setErr(e?.message || "Tijdensysteem wijzigen mislukt.");
     } finally {
       setSavingId("");
     }
@@ -338,8 +369,19 @@ export default function EmployeesPage() {
                           </Stack>
                         </TableCell>
 
-                        <TableCell>
-                          {expectedModeChip(row.expectedMode)}
+                        <TableCell sx={{ minWidth: 190 }}>
+                          <FormControl size="small" fullWidth>
+                            <Select
+                              value={normalizeExpectedMode(row.expectedMode)}
+                              onChange={(e) =>
+                                changeExpectedMode(row, e.target.value)
+                              }
+                              disabled={savingId === row.id}
+                            >
+                              <MenuItem value="ROSTER">ROOSTER</MenuItem>
+                              <MenuItem value="CALENDAR">KALENDER</MenuItem>
+                            </Select>
+                          </FormControl>
                         </TableCell>
 
                         <TableCell>
