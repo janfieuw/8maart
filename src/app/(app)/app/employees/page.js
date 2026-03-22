@@ -210,6 +210,9 @@ export default function EmployeesPage() {
                 <Typography variant="body2" color="text.secondary">
                   Beheer werknemers, Koppel codes en tijdensysteem
                 </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                  De koppel code heb je nodig om de smartphone éénmalig te koppelen. Het koppelen kan op de pagina Scan Tag.
+                </Typography>
               </Box>
 
               <Stack direction="row" spacing={1} justifyContent="flex-end">
