@@ -31,6 +31,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import SmartphoneIcon from "@mui/icons-material/Smartphone";
 
 function readJsonSafe(text) {
   try {
@@ -210,9 +211,54 @@ export default function EmployeesPage() {
                 <Typography variant="body2" color="text.secondary">
                   Beheer werknemers, Koppel codes en tijdensysteem
                 </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                  De koppel code heb je nodig om de smartphone éénmalig te koppelen. Het koppelen kan op de pagina Scan Tag.
-                </Typography>
+
+                {/* NIEUW INFO BLOK */}
+                <Box
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    borderRadius: "12px",
+                    px: 2.25,
+                    py: 1.75,
+                    display: "flex",
+                    gap: 1.5,
+                    alignItems: "flex-start",
+                    mt: 1,
+                  }}
+                >
+                  <SmartphoneIcon
+                    sx={{
+                      color: "#1e88e5",
+                      fontSize: 22,
+                      mt: "1px",
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: "0.95rem",
+                        lineHeight: 1.35,
+                        color: "#0b4f71",
+                        mb: 0.25,
+                      }}
+                    >
+                      Smartphone koppelen
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontSize: "0.95rem",
+                        lineHeight: 1.45,
+                        color: "#0b4f71",
+                      }}
+                    >
+                      De koppelcode heb je nodig om de smartphone éénmalig te koppelen.
+                      Het koppelen kan op de pagina "Scan Tag".
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
 
               <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -335,7 +381,6 @@ export default function EmployeesPage() {
                             <Button
                               component={Link}
                               href={`/app/employees/${row.id}`}
-                              className="reference-times-button"
                               variant="contained"
                               size="small"
                             >
