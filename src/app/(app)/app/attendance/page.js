@@ -75,7 +75,7 @@ async function loadAttendanceRows(from, to) {
   const data = await res.json();
 
   if (!res.ok || !data?.ok) {
-    throw new Error(data?.error || "Attendance laden mislukt.");
+    throw new Error(data?.error || "Aanwezigheid laden mislukt.");
   }
 
   return Array.isArray(data.rows) ? data.rows : [];
@@ -109,7 +109,7 @@ export default async function AttendancePage({ searchParams }) {
         .includes(nameParam.toLowerCase());
     });
   } catch (error) {
-    loadError = error?.message || "Attendance laden mislukt.";
+    loadError = error?.message || "Aanwezigheid laden mislukt.";
   }
 
   const totalExpectedMinutes = rows.reduce(
@@ -152,7 +152,7 @@ export default async function AttendancePage({ searchParams }) {
                       mb: 0.5,
                     }}
                   >
-                    Attendance
+                    Aanwezigheid
                   </Typography>
 
                   <Typography sx={{ color: "#6b7280" }}>
@@ -212,9 +212,9 @@ export default async function AttendancePage({ searchParams }) {
                   <TableRow>
                     <TableCell>Datum</TableCell>
                     <TableCell>Werknemer</TableCell>
-                    <TableCell>PairCode</TableCell>
-                    <TableCell>Expected</TableCell>
-                    <TableCell>Attendance</TableCell>
+                    <TableCell>Koppel code</TableCell>
+                    <TableCell>Referentietijd</TableCell>
+                    <TableCell>Aanwezigheid</TableCell>
                     <TableCell>Verschil</TableCell>
                   </TableRow>
                 </TableHead>
@@ -223,7 +223,7 @@ export default async function AttendancePage({ searchParams }) {
                   {rows.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6}>
-                        Geen attendance gevonden voor deze filter.
+                        Geen aanwezigheid gevonden voor deze filter.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -260,13 +260,13 @@ export default async function AttendancePage({ searchParams }) {
                     <Grid container spacing={2}>
                       <Grid item xs={12} md={4}>
                         <Typography sx={{ fontWeight: 700 }}>
-                          Totaal expected: {formatMinutes(totalExpectedMinutes)}
+                          Totaal referentietijd: {formatMinutes(totalExpectedMinutes)}
                         </Typography>
                       </Grid>
 
                       <Grid item xs={12} md={4}>
                         <Typography sx={{ fontWeight: 700 }}>
-                          Totaal attendance: {formatMinutes(totalAttendanceMinutes)}
+                          Totaal aanwezigheid: {formatMinutes(totalAttendanceMinutes)}
                         </Typography>
                       </Grid>
 

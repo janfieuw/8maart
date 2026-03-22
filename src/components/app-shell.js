@@ -32,7 +32,7 @@ const navItems = [
   { href: "/app/employees", label: "Werknemers", icon: <GroupOutlinedIcon /> },
   { href: "/app/registrations", label: "Registraties", icon: <FactCheckOutlinedIcon /> },
   { href: "/app/scantag", label: "ScanTag", icon: <QrCode2OutlinedIcon /> },
-  { href: "/app/attendance", label: "Attendance", icon: <AccessTimeOutlinedIcon /> },
+  { href: "/app/attendance", label: "Aanwezigheid", icon: <AccessTimeOutlinedIcon /> },
   { href: "/app/account", label: "Account", icon: <BusinessOutlinedIcon /> },
   { href: "/app/export", label: "Export", icon: <FileDownloadOutlinedIcon /> },
 ];
@@ -58,7 +58,6 @@ export default function AppShell({ session, children }) {
           },
         }}
       >
-        {/* LOGO */}
         <Toolbar
           sx={{
             minHeight: "72px !important",
@@ -90,7 +89,6 @@ export default function AppShell({ session, children }) {
             minHeight: 0,
           }}
         >
-          {/* MENU */}
           <List sx={{ px: 1.5, py: 2, flexShrink: 0 }}>
             {navItems.map((item) => {
               const active =
@@ -136,14 +134,13 @@ export default function AppShell({ session, children }) {
             })}
           </List>
 
-          {/* ✅ BADGES LINKS UITGELIJND */}
           <Box
             sx={{
               px: 3,
               pb: 2,
               display: "flex",
               flexDirection: "column",
-              alignItems: "flex-start", // 👈 links uitlijnen
+              alignItems: "flex-start",
               gap: 1,
               flexShrink: 0,
             }}
@@ -179,7 +176,6 @@ export default function AppShell({ session, children }) {
             </Box>
           </Box>
 
-          {/* USER + LOGOUT */}
           <Box sx={{ mt: "auto", p: 2, flexShrink: 0 }}>
             <Divider sx={{ mb: 2 }} />
 
@@ -199,7 +195,6 @@ export default function AppShell({ session, children }) {
         </Box>
       </Drawer>
 
-      {/* MAIN */}
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
         <AppBar
           position="sticky"
