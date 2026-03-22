@@ -347,7 +347,7 @@ export default function PublicScanPage() {
                   )}
 
                   <Typography variant="h6" color="text.secondary">
-                    Scan nu opnieuw de QR-code
+                    Je kunt nu de QR code IN scannen om jouw eerste IN te registreren.
                   </Typography>
                 </Stack>
               </CardContent>
