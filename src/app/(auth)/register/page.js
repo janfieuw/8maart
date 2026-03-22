@@ -79,6 +79,7 @@ export default function RegisterPage() {
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [vatNumber, setVatNumber] = useState("");
   const [phone, setPhone] = useState("");
@@ -102,6 +103,17 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setErr("");
+
+    if (String(password || "").length < 6) {
+      setErr("Wachtwoord moet minstens 6 tekens hebben.");
+      return;
+    }
+
+    if (String(password || "") !== String(confirmPassword || "")) {
+      setErr("De twee wachtwoorden zijn niet gelijk.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -110,6 +122,7 @@ export default function RegisterPage() {
         contactName: String(contactName || "").trim(),
         email: String(email || "").trim(),
         password: String(password || ""),
+        confirmPassword: String(confirmPassword || ""),
         vatNumber: String(vatNumber || "").trim(),
         phone: String(phone || "").trim(),
 
@@ -220,6 +233,19 @@ export default function RegisterPage() {
               required
               autoComplete="new-password"
               helperText="Minstens 6 tekens."
+              sx={inputSx}
+            />
+          </Field>
+
+          <Field label="Herhaal wachtwoord">
+            <TextField
+              fullWidth
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+              helperText="Geef hetzelfde wachtwoord opnieuw in."
               sx={inputSx}
             />
           </Field>
