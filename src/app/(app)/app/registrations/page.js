@@ -48,15 +48,9 @@ export default async function RegistrationsPage({ searchParams }) {
   const search = searchParams?.q || "";
 
   const scans = await prisma.scanEvent.findMany({
-    where: {
-      companyId,
-    },
-    include: {
-      employee: true,
-    },
-    orderBy: {
-      scannedAt: "desc",
-    },
+    where: { companyId },
+    include: { employee: true },
+    orderBy: { scannedAt: "desc" },
     take: 100,
   });
 
@@ -75,26 +69,11 @@ export default async function RegistrationsPage({ searchParams }) {
   return (
     <Box sx={{ px: 2, py: 2 }}>
       <Stack spacing={3}>
-        <Box>
-          <Typography
-            sx={{
-              fontSize: "2.4rem",
-              fontWeight: 800,
-              color: "#111827",
-              mb: 1,
-            }}
-          >
-            Registraties
-          </Typography>
-        </Box>
+        <Typography sx={{ fontSize: "2.4rem", fontWeight: 800 }}>
+          Registraties
+        </Typography>
 
-        <Card
-          sx={{
-            borderRadius: "16px",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
-          }}
-        >
+        <Card>
           <CardContent>
             <Stack spacing={3}>
               <TextField
@@ -118,17 +97,21 @@ export default async function RegistrationsPage({ searchParams }) {
                   {filtered.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.scannedAt)}</TableCell>
-
                       <TableCell>{row.employee?.name || "-"}</TableCell>
-
                       <TableCell>{row.employee?.pairCode || "-"}</TableCell>
 
                       <TableCell>
                         <Chip
                           size="small"
                           label={row.type}
-                          color={row.type === "IN" ? "success" : "warning"}
-                          variant="outlined"
+                          sx={{
+                            bgcolor:
+                              row.type === "IN"
+                                ? "success.main"
+                                : "#0c4e5f",
+                            color: "#fff",
+                            fontWeight: 700,
+                          }}
                         />
                       </TableCell>
                     </TableRow>
@@ -136,7 +119,9 @@ export default async function RegistrationsPage({ searchParams }) {
 
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4}>Geen registraties gevonden</TableCell>
+                      <TableCell colSpan={4}>
+                        Geen registraties gevonden
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>

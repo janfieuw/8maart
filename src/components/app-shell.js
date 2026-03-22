@@ -151,7 +151,7 @@ export default function AppShell({ session, children }) {
                 alt="GDPR Compliant"
                 width={68}
                 height={68}
-                style={{ width: "68px", height: "auto", objectFit: "contain" }}
+                style={{ width: "80px", height: "auto", objectFit: "contain" }}
               />
             </Box>
 
@@ -161,7 +161,7 @@ export default function AppShell({ session, children }) {
                 alt="Audited by Vestatech"
                 width={68}
                 height={68}
-                style={{ width: "68px", height: "auto", objectFit: "contain" }}
+                style={{ width: "80px", height: "auto", objectFit: "contain" }}
               />
             </Box>
 
@@ -171,7 +171,7 @@ export default function AppShell({ session, children }) {
                 alt="Secured Server"
                 width={68}
                 height={48}
-                style={{ width: "68px", height: "auto", objectFit: "contain" }}
+                style={{ width: "80px", height: "auto", objectFit: "contain" }}
               />
             </Box>
           </Box>

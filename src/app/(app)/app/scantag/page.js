@@ -137,42 +137,28 @@ export default async function ScanTagPage() {
           </Card>
         ) : (
           <Grid container spacing={3}>
+            {/* IN */}
             <Grid item xs={12} md={6}>
-              <Card
-                sx={{
-                  borderRadius: "16px",
-                  border: "1px solid #e5e7eb",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
-                  height: "100%",
-                }}
-              >
+              <Card sx={{ borderRadius: "16px", border: "1px solid #e5e7eb" }}>
                 <CardContent>
                   <Stack spacing={2} alignItems="center">
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{ width: "100%" }}
-                    >
+                    <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
                       <Typography sx={{ fontWeight: 700, fontSize: "1.4rem" }}>
                         QR IN
                       </Typography>
 
                       <Chip
                         label="IN"
-                        color="success"
-                        variant="outlined"
                         size="small"
+                        sx={{
+                          bgcolor: "success.main",
+                          color: "#fff",
+                          fontWeight: 700,
+                        }}
                       />
                     </Stack>
 
-                    <img
-                      src={qrImageUrl(inTag.secret)}
-                      width={240}
-                      height={240}
-                      alt="QR IN"
-                      style={{ display: "block" }}
-                    />
+                    <img src={qrImageUrl(inTag.secret)} width={240} />
 
                     <Button
                       variant="contained"
@@ -188,42 +174,28 @@ export default async function ScanTagPage() {
               </Card>
             </Grid>
 
+            {/* OUT */}
             <Grid item xs={12} md={6}>
-              <Card
-                sx={{
-                  borderRadius: "16px",
-                  border: "1px solid #e5e7eb",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
-                  height: "100%",
-                }}
-              >
+              <Card sx={{ borderRadius: "16px", border: "1px solid #e5e7eb" }}>
                 <CardContent>
                   <Stack spacing={2} alignItems="center">
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{ width: "100%" }}
-                    >
+                    <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
                       <Typography sx={{ fontWeight: 700, fontSize: "1.4rem" }}>
                         QR OUT
                       </Typography>
 
                       <Chip
                         label="OUT"
-                        color="warning"
-                        variant="outlined"
                         size="small"
+                        sx={{
+                          bgcolor: "#0c4e5f",
+                          color: "#fff",
+                          fontWeight: 700,
+                        }}
                       />
                     </Stack>
 
-                    <img
-                      src={qrImageUrl(outTag.secret)}
-                      width={240}
-                      height={240}
-                      alt="QR OUT"
-                      style={{ display: "block" }}
-                    />
+                    <img src={qrImageUrl(outTag.secret)} width={240} />
 
                     <Button
                       variant="contained"
