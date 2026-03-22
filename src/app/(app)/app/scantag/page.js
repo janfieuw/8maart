@@ -83,7 +83,6 @@ export default async function ScanTagPage() {
           </Typography>
         </Box>
 
-        {/* BEDRIJF */}
         <Card
           sx={{
             borderRadius: "16px",
@@ -122,28 +121,48 @@ export default async function ScanTagPage() {
           </CardContent>
         </Card>
 
-        {/* INFO BLOK */}
         <Box
           sx={{
             backgroundColor: "#e3f2fd",
             borderRadius: "12px",
-            p: 3,
+            px: 2.25,
+            py: 1.75,
             display: "flex",
-            gap: 2,
+            gap: 1.5,
             alignItems: "flex-start",
           }}
         >
-          <SmartphoneIcon sx={{ color: "#1976d2", mt: "2px" }} />
+          <SmartphoneIcon
+            sx={{
+              color: "#1e88e5",
+              fontSize: 22,
+              mt: "1px",
+              flexShrink: 0,
+            }}
+          />
 
           <Box>
-            <Typography sx={{ fontWeight: 700, mb: 0.5 }}>
+            <Typography
+              sx={{
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                lineHeight: 1.35,
+                color: "#0b4f71",
+                mb: 0.25,
+              }}
+            >
               Toestel koppelen
             </Typography>
 
-            <Typography sx={{ color: "#1f2937" }}>
+            <Typography
+              sx={{
+                fontSize: "0.95rem",
+                lineHeight: 1.45,
+                color: "#0b4f71",
+              }}
+            >
               Open de camera op je smartphone en scan een QR-code om dit toestel te koppelen.
-              <br />
-              Je wordt gevraagd om een koppelcode in te voeren. Deze vind je op de pagina "Werknemers".
+              De koppelcode zal gevraagd worden, je vindt die op de pagina "Werknemers".
             </Typography>
           </Box>
         </Box>
@@ -164,12 +183,15 @@ export default async function ScanTagPage() {
           </Card>
         ) : (
           <Grid container spacing={3}>
-            {/* IN */}
             <Grid item xs={12} md={6}>
               <Card sx={{ borderRadius: "16px", border: "1px solid #e5e7eb" }}>
                 <CardContent>
                   <Stack spacing={2} alignItems="center">
-                    <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      sx={{ width: "100%" }}
+                    >
                       <Typography sx={{ fontWeight: 700, fontSize: "1.4rem" }}>
                         QR IN
                       </Typography>
@@ -185,7 +207,13 @@ export default async function ScanTagPage() {
                       />
                     </Stack>
 
-                    <img src={qrImageUrl(inTag.secret)} width={240} />
+                    <img
+                      src={qrImageUrl(inTag.secret)}
+                      width={240}
+                      height={240}
+                      alt="QR IN"
+                      style={{ display: "block" }}
+                    />
 
                     <Button
                       variant="contained"
@@ -200,12 +228,15 @@ export default async function ScanTagPage() {
               </Card>
             </Grid>
 
-            {/* OUT */}
             <Grid item xs={12} md={6}>
               <Card sx={{ borderRadius: "16px", border: "1px solid #e5e7eb" }}>
                 <CardContent>
                   <Stack spacing={2} alignItems="center">
-                    <Stack direction="row" justifyContent="space-between" sx={{ width: "100%" }}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      sx={{ width: "100%" }}
+                    >
                       <Typography sx={{ fontWeight: 700, fontSize: "1.4rem" }}>
                         QR OUT
                       </Typography>
@@ -221,7 +252,13 @@ export default async function ScanTagPage() {
                       />
                     </Stack>
 
-                    <img src={qrImageUrl(outTag.secret)} width={240} />
+                    <img
+                      src={qrImageUrl(outTag.secret)}
+                      width={240}
+                      height={240}
+                      alt="QR OUT"
+                      style={{ display: "block" }}
+                    />
 
                     <Button
                       variant="contained"
