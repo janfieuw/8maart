@@ -29,7 +29,6 @@ import {
 } from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import SmartphoneIcon from "@mui/icons-material/Smartphone";
 
@@ -141,29 +140,6 @@ export default function EmployeesPage() {
     }
   }
 
-  async function deleteEmployee(row) {
-    const ok = window.confirm(`Werknemer "${row.name}" verwijderen?`);
-    if (!ok) return;
-
-    setSavingId(row.id);
-    setErr("");
-    setInfo("");
-
-    try {
-      const res = await fetch(`/api/employees/${row.id}`, {
-        method: "DELETE",
-      });
-
-      await readJson(res);
-      setRows((prev) => prev.filter((r) => r.id !== row.id));
-      setInfo("Werknemer verwijderd.");
-    } catch (e) {
-      setErr(e?.message || "Werknemer verwijderen mislukt.");
-    } finally {
-      setSavingId("");
-    }
-  }
-
   async function copyText(text, message = "Gekopieerd.") {
     try {
       await navigator.clipboard.writeText(text || "");
@@ -247,8 +223,9 @@ export default function EmployeesPage() {
                     color: "#0b4f71",
                   }}
                 >
-                  De koppel code heeft de werknemer straks nodig om zijn smartphone éénmalig te koppelen.
-                  Het koppelen kan op de pagina "Scan Tag".
+                  De koppel code heeft de werknemer straks nodig om zijn
+                  smartphone éénmalig te koppelen. Het koppelen kan op de pagina
+                  "Scan Tag".
                 </Typography>
               </Box>
             </Box>
@@ -338,7 +315,11 @@ export default function EmployeesPage() {
                         </TableCell>
 
                         <TableCell>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            alignItems="center"
+                          >
                             <span>{row.pairCode || "-"}</span>
 
                             <Tooltip title="Kopieer Koppel Code">
@@ -357,7 +338,9 @@ export default function EmployeesPage() {
                           </Stack>
                         </TableCell>
 
-                        <TableCell>{expectedModeChip(row.expectedMode)}</TableCell>
+                        <TableCell>
+                          {expectedModeChip(row.expectedMode)}
+                        </TableCell>
 
                         <TableCell>
                           <Switch
@@ -368,7 +351,12 @@ export default function EmployeesPage() {
                         </TableCell>
 
                         <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            justifyContent="flex-end"
+                            alignItems="center"
+                          >
                             <Button
                               component={Link}
                               href={`/app/employees/${row.id}`}
@@ -377,15 +365,6 @@ export default function EmployeesPage() {
                             >
                               Referentietijden aanpassen
                             </Button>
-
-                            <Tooltip title="Verwijderen">
-                              <IconButton
-                                onClick={() => deleteEmployee(row)}
-                                disabled={savingId === row.id}
-                              >
-                                <DeleteOutlineIcon />
-                              </IconButton>
-                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
