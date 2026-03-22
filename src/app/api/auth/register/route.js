@@ -61,6 +61,7 @@ export async function POST(req) {
     const contactName = String(body?.contactName || "").trim();
     const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
+    const confirmPassword = String(body?.confirmPassword || "");
 
     const vatNumber = String(body?.vatNumber || "").trim() || null;
     const phone = String(body?.phone || "").trim() || null;
@@ -101,6 +102,10 @@ export async function POST(req) {
 
     if (!password || password.length < 6) {
       return jsonError("Wachtwoord moet minstens 6 tekens hebben", 400);
+    }
+
+    if (password !== confirmPassword) {
+      return jsonError("De twee wachtwoorden zijn niet gelijk", 400);
     }
 
     if (!vatNumber) return jsonError("BTW-nummer is verplicht", 400);
