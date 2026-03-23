@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
@@ -25,19 +24,6 @@ function formatDateTime(value) {
     });
   } catch {
     return String(value);
-  }
-}
-
-function formatDateForFilename(value) {
-  if (!value) return "";
-  try {
-    const d = new Date(value);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  } catch {
-    return "";
   }
 }
 
@@ -91,6 +77,8 @@ function drawTableHeader(doc, y) {
 }
 
 async function buildPdfBuffer({ companyName, rows, fromDate, toDate }) {
+  const { default: PDFDocument } = await import("pdfkit");
+
   const doc = new PDFDocument({
     size: "A4",
     margin: 40,
@@ -141,6 +129,7 @@ async function buildPdfBuffer({ companyName, rows, fromDate, toDate }) {
 
   doc.end();
   await done;
+
   return Buffer.concat(chunks);
 }
 
@@ -237,9 +226,7 @@ export async function GET(req) {
         ),
       ];
 
-      const csv = csvRows.join("\n");
-
-      return new NextResponse(csv, {
+      return new NextResponse(csvRows.join("\n"), {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
@@ -263,6 +250,6 @@ export async function GET(req) {
     });
   } catch (error) {
     console.error("GET /api/registrations error:", error);
-    return jsonError("Failed to load registrations", 500);
+    return jsonError(error?.message || "Failed to load registrations", 500);
   }
 }
