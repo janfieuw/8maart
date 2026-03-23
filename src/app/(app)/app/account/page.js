@@ -15,6 +15,8 @@ import {
   Typography,
 } from "@mui/material";
 
+const SHOW_SECTION_3_SCANTAGS = false;
+
 function readJsonSafe(text) {
   try {
     return text ? JSON.parse(text) : null;
@@ -473,33 +475,41 @@ export default function AccountPage() {
               </Stack>
             </Box>
 
-            <Divider />
+            {SHOW_SECTION_3_SCANTAGS ? (
+              <>
+                <Divider />
 
-            <Box>
-              <Typography variant="h6" fontWeight={700} gutterBottom>
-                Sectie 3 — Scantags
-              </Typography>
+                <Box>
+                  <Typography variant="h6" fontWeight={700} gutterBottom>
+                    Sectie 3 — Scantags
+                  </Typography>
 
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Deze scantags worden automatisch aangemaakt voor je bedrijf.
-              </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Deze scantags worden automatisch aangemaakt voor je bedrijf.
+                  </Typography>
 
-              {sortedTags.length === 0 ? (
-                <Alert severity="warning">
-                  Geen scantags gevonden voor dit bedrijf.
-                </Alert>
-              ) : (
-                <Stack spacing={2}>
-                  {sortedTags.map((tag) => (
-                    <TagCard
-                      key={tag.id}
-                      tag={tag}
-                      onCopy={handleCopy}
-                    />
-                  ))}
-                </Stack>
-              )}
-            </Box>
+                  {sortedTags.length === 0 ? (
+                    <Alert severity="warning">
+                      Geen scantags gevonden voor dit bedrijf.
+                    </Alert>
+                  ) : (
+                    <Stack spacing={2}>
+                      {sortedTags.map((tag) => (
+                        <TagCard
+                          key={tag.id}
+                          tag={tag}
+                          onCopy={handleCopy}
+                        />
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              </>
+            ) : null}
           </Stack>
         </CardContent>
       </Card>
