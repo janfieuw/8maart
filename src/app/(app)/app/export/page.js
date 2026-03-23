@@ -57,17 +57,6 @@ async function readJson(res) {
   return data;
 }
 
-function triggerBlobDownload(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export default function ExportPage() {
   const [busyCsv, setBusyCsv] = useState(false);
   const [busyPdf, setBusyPdf] = useState(false);
@@ -128,25 +117,65 @@ export default function ExportPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/registrations?format=pdf", {
+      const res = await fetch("/api/registrations", {
         cache: "no-store",
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        let data = null;
+      const data = await readJson(res);
+      const rows = Array.isArray(data.rows) ? data.rows : [];
 
-        try {
-          data = text ? JSON.parse(text) : null;
-        } catch {
-          data = null;
-        }
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
 
-        throw new Error(data?.error || text || `HTTP ${res.status}`);
+      doc.setFontSize(16);
+      doc.text("Registraties", 14, 20);
+
+      doc.setFontSize(11);
+      doc.text("Datum | Werknemer | PairCode | Type | QR richting", 14, 28);
+
+      let y = 40;
+
+      if (rows.length === 0) {
+        doc.setFontSize(11);
+        doc.text("Geen registraties gevonden.", 14, y);
+      } else {
+        rows.forEach((row) => {
+          if (y > 280) {
+            doc.addPage();
+            y = 20;
+
+            doc.setFontSize(16);
+            doc.text("Registraties", 14, 20);
+
+            doc.setFontSize(11);
+            doc.text(
+              "Datum | Werknemer | PairCode | Type | QR richting",
+              14,
+              28
+            );
+
+            y = 40;
+          }
+
+          const line = [
+            formatDateTime(row.scannedAt),
+            row.employee?.name || "-",
+            row.employee?.pairCode || "-",
+            row.type || "-",
+            row.scanTag?.direction || "-",
+          ].join(" | ");
+
+          const safeLine =
+            line.length > 110 ? `${line.slice(0, 107)}...` : line;
+
+          doc.setFontSize(10);
+          doc.text(safeLine, 14, y);
+
+          y += 8;
+        });
       }
 
-      const blob = await res.blob();
-      triggerBlobDownload(blob, "registraties.pdf");
+      doc.save("registraties.pdf");
       setMessage("PDF-export succesvol gedownload.");
     } catch (e) {
       console.error("PDF export error:", e);
