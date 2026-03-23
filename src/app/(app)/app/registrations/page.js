@@ -1,3 +1,4 @@
+// registraties page.js
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";

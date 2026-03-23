@@ -1,3 +1,4 @@
+// attendance page.js
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
@@ -40,6 +41,10 @@ function formatMinutes(totalMinutes) {
   const hours = Math.floor(safe / 60);
   const minutes = safe % 60;
   return `${sign}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function isNoDataRow(row) {
+  return Boolean(row?.firstIn) && !row?.lastOut;
 }
 
 async function getBaseUrlFromHeaders() {
@@ -117,11 +122,11 @@ export default async function AttendancePage({ searchParams }) {
     0
   );
   const totalAttendanceMinutes = rows.reduce(
-    (sum, row) => sum + Number(row.workedMin || 0),
+    (sum, row) => sum + (isNoDataRow(row) ? 0 : Number(row.workedMin || 0)),
     0
   );
   const totalDifferenceMinutes = rows.reduce(
-    (sum, row) => sum + Number(row.deltaMin || 0),
+    (sum, row) => sum + (isNoDataRow(row) ? 0 : Number(row.deltaMin || 0)),
     0
   );
 
@@ -227,23 +232,49 @@ export default async function AttendancePage({ searchParams }) {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>{formatDisplayDate(row.day)}</TableCell>
-                        <TableCell>{row.employeeName}</TableCell>
-                        <TableCell>{row.pairCode}</TableCell>
-                        <TableCell>{formatMinutes(row.expectedMin)}</TableCell>
-                        <TableCell>{formatMinutes(row.workedMin)}</TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            label={formatMinutes(row.deltaMin)}
-                            color={row.deltaMin < 0 ? "error" : "success"}
-                            variant="outlined"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    rows.map((row) => {
+                      const noData = isNoDataRow(row);
+
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell>{formatDisplayDate(row.day)}</TableCell>
+                          <TableCell>{row.employeeName}</TableCell>
+                          <TableCell>{row.pairCode}</TableCell>
+                          <TableCell>{formatMinutes(row.expectedMin)}</TableCell>
+
+                          <TableCell>
+                            {noData ? (
+                              <Chip
+                                size="small"
+                                label="NO DATA"
+                                color="warning"
+                                variant="outlined"
+                              />
+                            ) : (
+                              formatMinutes(row.workedMin)
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {noData ? (
+                              <Chip
+                                size="small"
+                                label="NO DATA"
+                                color="warning"
+                                variant="outlined"
+                              />
+                            ) : (
+                              <Chip
+                                size="small"
+                                label={formatMinutes(row.deltaMin)}
+                                color={row.deltaMin < 0 ? "error" : "success"}
+                                variant="outlined"
+                              />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

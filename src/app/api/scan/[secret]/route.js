@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const DUPLICATE_SCAN_WINDOW_MS = 5 * 60 * 1000;
+
 function jsonOk(data = {}, status = 200) {
   return NextResponse.json({ ok: true, ...data }, { status });
 }
@@ -37,6 +39,10 @@ function minutesBetween(a, b) {
   return Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
 }
 
+function msBetween(a, b) {
+  return Math.max(0, b.getTime() - a.getTime());
+}
+
 function computeWorkedFromEvents(events) {
   const sorted = [...events].sort(
     (a, b) => new Date(a.scannedAt).getTime() - new Date(b.scannedAt).getTime()
@@ -52,19 +58,36 @@ function computeWorkedFromEvents(events) {
     if (Number.isNaN(ts.getTime())) continue;
 
     if (ev.type === "IN") {
-      if (!firstIn) firstIn = ts;
-      if (!openIn) openIn = ts;
+      // Nieuwe IN na open IN mag na 5 minuten als start van een nieuwe periode.
+      openIn = ts;
+
+      // Als er nog geen geldige OUT geweest is, schuift firstIn mee op.
+      if (!firstIn || lastOut === null) {
+        firstIn = ts;
+      }
+
       continue;
     }
 
     if (ev.type === "OUT") {
-      lastOut = ts;
-
-      if (openIn) {
-        workedMin += minutesBetween(openIn, ts);
-        openIn = null;
+      if (!openIn) {
+        // OUT zonder open IN telt niet mee in workedMin.
+        continue;
       }
+
+      if (!firstIn) {
+        firstIn = openIn;
+      }
+
+      workedMin += minutesBetween(openIn, ts);
+      lastOut = ts;
+      openIn = null;
     }
+  }
+
+  if (openIn) {
+    // Incomplete dag => attendance kan NO DATA tonen via firstIn + lastOut null.
+    lastOut = null;
   }
 
   return {
@@ -233,6 +256,20 @@ async function getLastScanEvent(employeeId) {
   });
 }
 
+function buildScanRuleError({ message, errorCode, type, employee }) {
+  return jsonError(message, 400, {
+    errorCode,
+    type,
+    employee: employee
+      ? {
+          id: employee.id,
+          name: employee.name,
+          pairCode: employee.pairCode,
+        }
+      : null,
+  });
+}
+
 export async function POST(request, context) {
   try {
     const params = await context.params;
@@ -297,16 +334,42 @@ export async function POST(request, context) {
     const lastScanEvent = await getLastScanEvent(employee.id);
     const lastDirection = String(lastScanEvent?.type || "").trim().toUpperCase();
 
-    if (lastScanEvent && lastDirection && lastDirection === newDirection) {
-      return jsonError("FOUTIEVE DUBBELE SCAN", 400, {
-        errorCode: "DUPLICATE_SCAN",
-        type: newDirection,
-        employee: {
-          id: employee.id,
-          name: employee.name,
-          pairCode: employee.pairCode,
-        },
-      });
+    if (!lastScanEvent) {
+      if (newDirection === "OUT") {
+        return buildScanRuleError({
+          message: "SCAN OUT ZONDER VOORGAANDE SCAN IN",
+          errorCode: "MISSING_IN",
+          type: newDirection,
+          employee,
+        });
+      }
+    } else {
+      const lastScannedAt = new Date(lastScanEvent.scannedAt);
+      const now = new Date();
+      const elapsedMs = msBetween(lastScannedAt, now);
+      const isSameType = lastDirection === newDirection;
+      const isWithinDuplicateWindow = elapsedMs <= DUPLICATE_SCAN_WINDOW_MS;
+
+      if (isSameType && isWithinDuplicateWindow) {
+        return buildScanRuleError({
+          message: "FOUTIEVE DUBBELE SCAN",
+          errorCode: "DUPLICATE_SCAN",
+          type: newDirection,
+          employee,
+        });
+      }
+
+      if (newDirection === "OUT" && lastDirection !== "IN") {
+        return buildScanRuleError({
+          message: "SCAN OUT ZONDER VOORGAANDE SCAN IN",
+          errorCode: "MISSING_IN",
+          type: newDirection,
+          employee,
+        });
+      }
+
+      // IN na IN na meer dan 5 minuten:
+      // toegestaan als nieuwe start van een volgende periode.
     }
 
     const scanEvent = await prisma.scanEvent.create({

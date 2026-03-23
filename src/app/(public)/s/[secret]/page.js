@@ -1,4 +1,4 @@
-// page.js
+// public scan page.js
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -52,11 +52,9 @@ function isPairingRequiredError(message) {
   );
 }
 
-function isDuplicateScanError(error) {
+function isScanRuleError(error) {
   const code = String(error?.code || "").toUpperCase();
-  const message = String(error?.message || "").toUpperCase();
-
-  return code === "DUPLICATE_SCAN" || message.includes("FOUTIEVE DUBBELE SCAN");
+  return code === "DUPLICATE_SCAN" || code === "MISSING_IN";
 }
 
 function getSuccessTitle(type) {
@@ -160,8 +158,9 @@ export default function PublicScanPage() {
 
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState("");
-  const [duplicateScanError, setDuplicateScanError] = useState(false);
-  const [duplicateEmployeeName, setDuplicateEmployeeName] = useState("");
+  const [scanRuleError, setScanRuleError] = useState(false);
+  const [scanRuleMessage, setScanRuleMessage] = useState("");
+  const [scanRuleEmployeeName, setScanRuleEmployeeName] = useState("");
   const [deviceJustPaired, setDeviceJustPaired] = useState(false);
 
   const autoTriedRef = useRef(false);
@@ -183,8 +182,9 @@ export default function PublicScanPage() {
       setLoading(true);
       setError("");
       setSuccess(null);
-      setDuplicateScanError(false);
-      setDuplicateEmployeeName("");
+      setScanRuleError(false);
+      setScanRuleMessage("");
+      setScanRuleEmployeeName("");
       setScanTag(null);
 
       try {
@@ -230,8 +230,9 @@ export default function PublicScanPage() {
     setSubmitting(true);
     setError("");
     setSuccess(null);
-    setDuplicateScanError(false);
-    setDuplicateEmployeeName("");
+    setScanRuleError(false);
+    setScanRuleMessage("");
+    setScanRuleEmployeeName("");
     setDeviceJustPaired(false);
 
     try {
@@ -247,9 +248,10 @@ export default function PublicScanPage() {
     } catch (e) {
       setError(e?.message || "Scan registreren mislukt.");
 
-      if (isDuplicateScanError(e)) {
-        setDuplicateScanError(true);
-        setDuplicateEmployeeName(e?.data?.employee?.name || "");
+      if (isScanRuleError(e)) {
+        setScanRuleError(true);
+        setScanRuleMessage(e?.message || "Scannen mislukt");
+        setScanRuleEmployeeName(e?.data?.employee?.name || "");
       }
 
       throw e;
@@ -269,8 +271,9 @@ export default function PublicScanPage() {
     setPairing(true);
     setError("");
     setSuccess(null);
-    setDuplicateScanError(false);
-    setDuplicateEmployeeName("");
+    setScanRuleError(false);
+    setScanRuleMessage("");
+    setScanRuleEmployeeName("");
 
     try {
       const cleanPairCode = String(pairCode || "").trim().toUpperCase();
@@ -331,12 +334,12 @@ export default function PublicScanPage() {
     !submitting &&
     !pairing &&
     !!error &&
-    !duplicateScanError &&
+    !scanRuleError &&
     !deviceJustPaired &&
     isPairingRequiredError(error);
 
   const pairingError =
-    error && !duplicateScanError && !isPairingRequiredError(error) ? error : "";
+    error && !scanRuleError && !isPairingRequiredError(error) ? error : "";
 
   const employeeName = success?.employee?.name || null;
   const timestamp = success?.scannedAt || null;
@@ -425,7 +428,7 @@ export default function PublicScanPage() {
             </Card>
           ) : null}
 
-          {!success && duplicateScanError ? (
+          {!success && scanRuleError ? (
             <Card
               sx={{
                 borderRadius: 4,
@@ -439,11 +442,11 @@ export default function PublicScanPage() {
                   <ErrorIcon color={RED} />
 
                   <Typography variant="h4" fontWeight={900} color={RED}>
-                    FOUTIEVE DUBBELE SCAN
+                    {scanRuleMessage || "SCAN GEWEIGERD"}
                   </Typography>
 
-                  {duplicateEmployeeName ? (
-                    <Typography variant="h5">{duplicateEmployeeName}</Typography>
+                  {scanRuleEmployeeName ? (
+                    <Typography variant="h5">{scanRuleEmployeeName}</Typography>
                   ) : null}
                 </Stack>
               </CardContent>
@@ -523,7 +526,7 @@ export default function PublicScanPage() {
           {!success &&
           !loading &&
           !needsPairCode &&
-          !duplicateScanError &&
+          !scanRuleError &&
           error ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
