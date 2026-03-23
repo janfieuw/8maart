@@ -1,42 +1,28 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getDemoCompanyId } from "@/lib/demo-company";
-import PDFDocument from "pdfkit";
+import { getSession } from "@/lib/auth";
 
-function jsonOk(data = {}, status = 200) {
-  return NextResponse.json({ ok: true, ...data }, { status });
-}
-
-function jsonError(error, status = 400) {
-  return NextResponse.json(
-    {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    },
-    { status }
-  );
-}
-
-function formatDateTime(value) {
-  if (!value) return "";
-  try {
-    return new Date(value).toLocaleString("nl-BE", {
-      timeZone: "Europe/Brussels",
-    });
-  } catch {
-    return String(value);
-  }
+function jsonError(message, status = 400) {
+  return new Response(JSON.stringify({ ok: false, error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export async function GET(req) {
   try {
-    const companyId = await getDemoCompanyId();
-    const format = new URL(req.url).searchParams.get("format");
+    const session = await getSession();
 
-    const rows = await prisma.scanEvent.findMany({
+    if (!session?.companyId) {
+      return jsonError("Niet ingelogd.", 401);
+    }
+
+    const companyId = session.companyId;
+
+    const { searchParams } = new URL(req.url);
+    const format = searchParams.get("format");
+
+    const scans = await prisma.scan.findMany({
       where: { companyId },
-      orderBy: { scannedAt: "desc" },
-      take: 500,
       include: {
         employee: {
           select: {
@@ -44,65 +30,100 @@ export async function GET(req) {
             pairCode: true,
           },
         },
-        scanTag: true,
       },
+      orderBy: { scannedAt: "desc" },
     });
 
-    // 👉 PDF EXPORT
-    if (format === "pdf") {
-      const doc = new PDFDocument({ margin: 40, size: "A4" });
+    const rows = scans.map((s) => ({
+      date: s.scannedAt,
+      employee: s.employee?.name || "-",
+      pairCode: s.employee?.pairCode || "-",
+      type: s.type,
+      direction: s.direction,
+      secret: s.secret,
+    }));
 
-      const chunks = [];
-      doc.on("data", (chunk) => chunks.push(chunk));
+    // =========================
+    // CSV EXPORT
+    // =========================
+    if (format === "csv") {
+      const header = [
+        "Datum",
+        "Werknemer",
+        "Koppelcode",
+        "Type",
+        "Richting",
+        "QR Secret",
+      ];
 
-      const endPromise = new Promise((resolve) => {
-        doc.on("end", resolve);
-      });
+      const csv = [
+        header.join(";"),
+        ...rows.map((r) =>
+          [
+            new Date(r.date).toLocaleString("nl-BE"),
+            r.employee,
+            r.pairCode,
+            r.type,
+            r.direction,
+            r.secret,
+          ].join(";")
+        ),
+      ].join("\n");
 
-      // Titel
-      doc.fontSize(16).text("Registraties export", { align: "left" });
-      doc.moveDown();
-
-      // Header
-      doc.fontSize(10).text(
-        "Datum | Werknemer | PairCode | Type | Richting",
-        { underline: true }
-      );
-      doc.moveDown(0.5);
-
-      // Data
-      rows.forEach((row) => {
-        const line = [
-          formatDateTime(row.scannedAt),
-          row.employee?.name || "",
-          row.employee?.pairCode || "",
-          row.type || "",
-          row.scanTag?.direction || "",
-        ].join(" | ");
-
-        doc.text(line, {
-          width: 500,
-        });
-      });
-
-      doc.end();
-      await endPromise;
-
-      const pdfBuffer = Buffer.concat(chunks);
-
-      return new NextResponse(pdfBuffer, {
-        status: 200,
+      return new Response(csv, {
         headers: {
-          "Content-Type": "application/pdf",
-          "Content-Disposition": 'attachment; filename="registraties.pdf"',
+          "Content-Type": "text/csv",
+          "Content-Disposition": "attachment; filename=registraties.csv",
         },
       });
     }
 
-    // 👉 JSON (voor CSV)
-    return jsonOk({ rows });
-  } catch (error) {
-    console.error("GET /api/registrations error:", error);
+    // =========================
+    // PDF EXPORT
+    // =========================
+    if (format === "pdf") {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text("Registraties", 14, 20);
+
+      let y = 30;
+
+      rows.forEach((r) => {
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.setFontSize(10);
+        doc.text(
+          `${new Date(r.date).toLocaleString("nl-BE")} | ${r.employee} | ${r.type} | ${r.direction}`,
+          14,
+          y
+        );
+
+        y += 6;
+      });
+
+      const pdfBuffer = doc.output("arraybuffer");
+
+      return new Response(pdfBuffer, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "attachment; filename=registraties.pdf",
+        },
+      });
+    }
+
+    // =========================
+    // DEFAULT JSON
+    // =========================
+    return new Response(JSON.stringify({ ok: true, rows }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error(e);
     return jsonError("Failed to load registrations", 500);
   }
 }
