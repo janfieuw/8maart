@@ -30,6 +30,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import SmartphoneIcon from "@mui/icons-material/Smartphone";
+import DownloadIcon from "@mui/icons-material/Download";
 
 function readJsonSafe(text) {
   try {
@@ -67,6 +68,7 @@ export default function EmployeesPage() {
   const [savingId, setSavingId] = useState("");
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -181,6 +183,80 @@ export default function EmployeesPage() {
     }
   }
 
+  async function exportEmployeesPdf() {
+    setExportingPdf(true);
+    setErr("");
+    setInfo("");
+
+    try {
+      const [{ jsPDF }, autoTableModule] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+
+      const autoTable =
+        autoTableModule.default || autoTableModule.autoTable || autoTableModule;
+
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4",
+      });
+
+      const marginLeft = 40;
+      const today = new Date().toLocaleDateString("nl-BE");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.text("Werknemerslijst", marginLeft, 50);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`Exportdatum: ${today}`, marginLeft, 70);
+
+      autoTable(doc, {
+        startY: 90,
+        head: [["Naam", "Koppel Code", "Tijdensysteem", "Actief"]],
+        body: filteredRows.map((row) => [
+          row.name || "-",
+          row.pairCode || "-",
+          expectedModeLabel(row.expectedMode),
+          row.active ? "Ja" : "Nee",
+        ]),
+        styles: {
+          font: "helvetica",
+          fontSize: 10,
+          cellPadding: 6,
+          lineColor: [220, 220, 220],
+          lineWidth: 0.5,
+          textColor: [20, 20, 20],
+        },
+        headStyles: {
+          fillColor: [10, 31, 68],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+        },
+        bodyStyles: {
+          fillColor: [255, 255, 255],
+        },
+        alternateRowStyles: {
+          fillColor: [248, 249, 250],
+        },
+        margin: { left: 40, right: 40 },
+      });
+
+      doc.save("werknemerslijst.pdf");
+      setInfo("PDF werd gedownload.");
+    } catch (e) {
+      setErr(
+        e?.message ||
+          "PDF export mislukt. Controleer of jspdf en jspdf-autotable geïnstalleerd zijn."
+      );
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
 
@@ -261,7 +337,12 @@ export default function EmployeesPage() {
               </Box>
             </Box>
 
-            <Box>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              justifyContent="space-between"
+              alignItems={{ xs: "stretch", sm: "center" }}
+            >
               <Button
                 component={Link}
                 href="/app/employees/new"
@@ -270,7 +351,16 @@ export default function EmployeesPage() {
               >
                 Werknemer toevoegen
               </Button>
-            </Box>
+
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={exportEmployeesPdf}
+                disabled={loading || exportingPdf || filteredRows.length === 0}
+              >
+                {exportingPdf ? "PDF maken..." : "Download PDF"}
+              </Button>
+            </Stack>
 
             {err ? <Alert severity="error">{err}</Alert> : null}
             {info ? <Alert severity="success">{info}</Alert> : null}
