@@ -77,14 +77,7 @@ export default function ExportPage() {
       const rows = Array.isArray(data.rows) ? data.rows : [];
 
       const csvRows = [
-        [
-          "Datum",
-          "Werknemer",
-          "PairCode",
-          "Type",
-          "QR richting",
-          "QR secret",
-        ]
+        ["Datum", "Werknemer", "PairCode", "Type"]
           .map(toCsvValue)
           .join(","),
         ...rows.map((row) =>
@@ -93,8 +86,6 @@ export default function ExportPage() {
             row.employee?.name || "",
             row.employee?.pairCode || "",
             row.type || "",
-            row.scanTag?.direction || "",
-            row.scanTag?.secret || "",
           ]
             .map(toCsvValue)
             .join(",")
@@ -123,15 +114,20 @@ export default function ExportPage() {
 
       const data = await readJson(res);
       const rows = Array.isArray(data.rows) ? data.rows : [];
+      const companyName = data.companyName || "";
 
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF();
 
+      const title = companyName
+        ? `Registraties - ${companyName}`
+        : "Registraties";
+
       doc.setFontSize(16);
-      doc.text("Registraties", 14, 20);
+      doc.text(title, 14, 20);
 
       doc.setFontSize(11);
-      doc.text("Datum | Werknemer | PairCode | Type | QR richting", 14, 28);
+      doc.text("Datum | Werknemer | PairCode | Type", 14, 28);
 
       let y = 40;
 
@@ -145,14 +141,10 @@ export default function ExportPage() {
             y = 20;
 
             doc.setFontSize(16);
-            doc.text("Registraties", 14, 20);
+            doc.text(title, 14, 20);
 
             doc.setFontSize(11);
-            doc.text(
-              "Datum | Werknemer | PairCode | Type | QR richting",
-              14,
-              28
-            );
+            doc.text("Datum | Werknemer | PairCode | Type", 14, 28);
 
             y = 40;
           }
@@ -162,11 +154,10 @@ export default function ExportPage() {
             row.employee?.name || "-",
             row.employee?.pairCode || "-",
             row.type || "-",
-            row.scanTag?.direction || "-",
           ].join(" | ");
 
           const safeLine =
-            line.length > 110 ? `${line.slice(0, 107)}...` : line;
+            line.length > 120 ? `${line.slice(0, 117)}...` : line;
 
           doc.setFontSize(10);
           doc.text(safeLine, 14, y);
@@ -175,7 +166,16 @@ export default function ExportPage() {
         });
       }
 
-      doc.save("registraties.pdf");
+      const safeCompanyName = String(companyName || "")
+        .trim()
+        .replace(/[^\p{L}\p{N}\-_ ]/gu, "")
+        .replace(/\s+/g, "_");
+
+      const fileName = safeCompanyName
+        ? `registraties_${safeCompanyName}.pdf`
+        : "registraties.pdf";
+
+      doc.save(fileName);
       setMessage("PDF-export succesvol gedownload.");
     } catch (e) {
       console.error("PDF export error:", e);
@@ -208,8 +208,7 @@ export default function ExportPage() {
               </Typography>
 
               <Typography variant="body1" color="text.secondary">
-                Download een bestand met datum, werknemer, paircode, type,
-                QR-richting en QR-secret.
+                Download een bestand met datum, werknemer, paircode en type.
               </Typography>
 
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

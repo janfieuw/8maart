@@ -12,7 +12,7 @@ function jsonError(error, status = 400) {
   );
 }
 
-export async function GET(req) {
+export async function GET() {
   try {
     const session = await getSession();
 
@@ -22,27 +22,37 @@ export async function GET(req) {
 
     const companyId = session.companyId;
 
-    const rows = await prisma.scanEvent.findMany({
-      where: { companyId },
-      orderBy: { scannedAt: "desc" },
-      take: 5000,
-      include: {
-        employee: {
-          select: {
-            name: true,
-            pairCode: true,
+    const [company, rows] = await Promise.all([
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: { name: true },
+      }),
+      prisma.scanEvent.findMany({
+        where: { companyId },
+        orderBy: { scannedAt: "desc" },
+        take: 5000,
+        include: {
+          employee: {
+            select: {
+              name: true,
+              pairCode: true,
+            },
+          },
+          scanTag: {
+            select: {
+              direction: true,
+              secret: true,
+            },
           },
         },
-        scanTag: {
-          select: {
-            direction: true,
-            secret: true,
-          },
-        },
-      },
-    });
+      }),
+    ]);
 
-    return NextResponse.json({ ok: true, rows });
+    return NextResponse.json({
+      ok: true,
+      companyName: company?.name || "",
+      rows,
+    });
   } catch (error) {
     console.error(error);
     return jsonError("Failed to load registrations", 500);
