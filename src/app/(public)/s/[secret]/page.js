@@ -1,3 +1,4 @@
+// page.js
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -14,11 +15,13 @@ import {
   Typography,
 } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
+import BlockIcon from "@mui/icons-material/Block";
 import { getOrCreateDeviceToken } from "@/lib/device-token";
 
 const SCAN_LOCK_KEY = "punctoo_scan_lock";
 const SCAN_COOLDOWN_MS = 5000;
 const BLUE = "#0c4e5f";
+const RED = "#c62828";
 
 async function readJson(res) {
   const text = await res.text();
@@ -31,7 +34,10 @@ async function readJson(res) {
   }
 
   if (!res.ok || !data?.ok) {
-    throw new Error(data?.error || text || `HTTP ${res.status}`);
+    const error = new Error(data?.error || text || `HTTP ${res.status}`);
+    error.code = data?.errorCode || "";
+    error.data = data || null;
+    throw error;
   }
 
   return data;
@@ -44,6 +50,13 @@ function isPairingRequiredError(message) {
     msg.includes("toestel niet gekoppeld") ||
     msg.includes("werknemer niet gevonden")
   );
+}
+
+function isDuplicateScanError(error) {
+  const code = String(error?.code || "").toUpperCase();
+  const message = String(error?.message || "").toUpperCase();
+
+  return code === "DUPLICATE_SCAN" || message.includes("FOUTIEVE DUBBELE SCAN");
 }
 
 function getSuccessTitle(type) {
@@ -115,6 +128,24 @@ function SuccessIcon({ color }) {
   );
 }
 
+function ErrorIcon({ color }) {
+  return (
+    <Box
+      sx={{
+        width: 64,
+        height: 64,
+        borderRadius: "50%",
+        bgcolor: color,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <BlockIcon sx={{ color: "#fff", fontSize: 36 }} />
+    </Box>
+  );
+}
+
 export default function PublicScanPage() {
   const params = useParams();
   const secret = String(params?.secret || "").trim();
@@ -129,6 +160,8 @@ export default function PublicScanPage() {
 
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState("");
+  const [duplicateScanError, setDuplicateScanError] = useState(false);
+  const [duplicateEmployeeName, setDuplicateEmployeeName] = useState("");
   const [deviceJustPaired, setDeviceJustPaired] = useState(false);
 
   const autoTriedRef = useRef(false);
@@ -150,6 +183,8 @@ export default function PublicScanPage() {
       setLoading(true);
       setError("");
       setSuccess(null);
+      setDuplicateScanError(false);
+      setDuplicateEmployeeName("");
       setScanTag(null);
 
       try {
@@ -195,6 +230,8 @@ export default function PublicScanPage() {
     setSubmitting(true);
     setError("");
     setSuccess(null);
+    setDuplicateScanError(false);
+    setDuplicateEmployeeName("");
     setDeviceJustPaired(false);
 
     try {
@@ -209,6 +246,12 @@ export default function PublicScanPage() {
       return data;
     } catch (e) {
       setError(e?.message || "Scan registreren mislukt.");
+
+      if (isDuplicateScanError(e)) {
+        setDuplicateScanError(true);
+        setDuplicateEmployeeName(e?.data?.employee?.name || "");
+      }
+
       throw e;
     } finally {
       setSubmitting(false);
@@ -226,6 +269,8 @@ export default function PublicScanPage() {
     setPairing(true);
     setError("");
     setSuccess(null);
+    setDuplicateScanError(false);
+    setDuplicateEmployeeName("");
 
     try {
       const cleanPairCode = String(pairCode || "").trim().toUpperCase();
@@ -286,11 +331,12 @@ export default function PublicScanPage() {
     !submitting &&
     !pairing &&
     !!error &&
+    !duplicateScanError &&
     !deviceJustPaired &&
     isPairingRequiredError(error);
 
   const pairingError =
-    error && !isPairingRequiredError(error) ? error : "";
+    error && !duplicateScanError && !isPairingRequiredError(error) ? error : "";
 
   const employeeName = success?.employee?.name || null;
   const timestamp = success?.scannedAt || null;
@@ -340,11 +386,7 @@ export default function PublicScanPage() {
                     SMARTPHONE SUCCESVOL GEKOPPELD
                   </Typography>
 
-                  {employeeName && (
-                    <Typography variant="h6">
-                      {employeeName}
-                    </Typography>
-                  )}
+                  {employeeName && <Typography variant="h6">{employeeName}</Typography>}
 
                   <Typography variant="h6" color="text.secondary">
                     Je kunt nu de QR code IN scannen om jouw eerste IN te registreren.
@@ -371,17 +413,38 @@ export default function PublicScanPage() {
                     {getSuccessTitle(success?.type)}
                   </Typography>
 
-                  {employeeName && (
-                    <Typography variant="h5">
-                      {employeeName}
-                    </Typography>
-                  )}
+                  {employeeName && <Typography variant="h5">{employeeName}</Typography>}
 
                   {formatted && (
                     <Typography variant="body1" color="text.secondary">
                       {formatted.formattedDate} • {formatted.formattedTime}
                     </Typography>
                   )}
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {!success && duplicateScanError ? (
+            <Card
+              sx={{
+                borderRadius: 4,
+                border: "3px solid",
+                borderColor: RED,
+                textAlign: "center",
+              }}
+            >
+              <CardContent sx={{ p: 5 }}>
+                <Stack spacing={3} alignItems="center">
+                  <ErrorIcon color={RED} />
+
+                  <Typography variant="h4" fontWeight={900} color={RED}>
+                    FOUTIEVE DUBBELE SCAN
+                  </Typography>
+
+                  {duplicateEmployeeName ? (
+                    <Typography variant="h5">{duplicateEmployeeName}</Typography>
+                  ) : null}
                 </Stack>
               </CardContent>
             </Card>
@@ -457,7 +520,11 @@ export default function PublicScanPage() {
             </Card>
           ) : null}
 
-          {!success && !loading && !needsPairCode && error ? (
+          {!success &&
+          !loading &&
+          !needsPairCode &&
+          !duplicateScanError &&
+          error ? (
             <Card sx={{ borderRadius: 4 }}>
               <CardContent sx={{ p: 4 }}>
                 <Alert severity="error">{error}</Alert>

@@ -1,3 +1,4 @@
+// route.js
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -5,11 +6,12 @@ function jsonOk(data = {}, status = 200) {
   return NextResponse.json({ ok: true, ...data }, { status });
 }
 
-function jsonError(error, status = 400) {
+function jsonError(error, status = 400, extra = {}) {
   return NextResponse.json(
     {
       ok: false,
       error: error instanceof Error ? error.message : String(error),
+      ...extra,
     },
     { status }
   );
@@ -215,6 +217,22 @@ async function upsertAttendanceDay(employee, scannedAt) {
   });
 }
 
+async function getLastScanEvent(employeeId) {
+  return prisma.scanEvent.findFirst({
+    where: {
+      employeeId,
+    },
+    orderBy: {
+      scannedAt: "desc",
+    },
+    select: {
+      id: true,
+      type: true,
+      scannedAt: true,
+    },
+  });
+}
+
 export async function POST(request, context) {
   try {
     const params = await context.params;
@@ -273,6 +291,22 @@ export async function POST(request, context) {
         "Werknemer niet gevonden of toestel niet gekoppeld",
         404
       );
+    }
+
+    const newDirection = String(tag.direction || "").trim().toUpperCase();
+    const lastScanEvent = await getLastScanEvent(employee.id);
+    const lastDirection = String(lastScanEvent?.type || "").trim().toUpperCase();
+
+    if (lastScanEvent && lastDirection && lastDirection === newDirection) {
+      return jsonError("FOUTIEVE DUBBELE SCAN", 400, {
+        errorCode: "DUPLICATE_SCAN",
+        type: newDirection,
+        employee: {
+          id: employee.id,
+          name: employee.name,
+          pairCode: employee.pairCode,
+        },
+      });
     }
 
     const scanEvent = await prisma.scanEvent.create({
