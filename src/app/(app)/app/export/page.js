@@ -12,6 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 
 function toCsvValue(value) {
   const text = String(value ?? "");
@@ -56,13 +57,25 @@ async function readJson(res) {
   return data;
 }
 
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function ExportPage() {
-  const [busy, setBusy] = useState(false);
+  const [busyCsv, setBusyCsv] = useState(false);
+  const [busyPdf, setBusyPdf] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function handleExport() {
-    setBusy(true);
+  async function handleExportCsv() {
+    setBusyCsv(true);
     setMessage("");
     setError("");
 
@@ -100,12 +113,46 @@ export default function ExportPage() {
       ];
 
       downloadTextFile("registraties.csv", csvRows.join("\n"));
-      setMessage("Export succesvol gedownload.");
+      setMessage("CSV-export succesvol gedownload.");
     } catch (e) {
-      console.error("Export error:", e);
-      setError(e?.message || "Export mislukt.");
+      console.error("CSV export error:", e);
+      setError(e?.message || "CSV-export mislukt.");
     } finally {
-      setBusy(false);
+      setBusyCsv(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    setBusyPdf(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const res = await fetch("/api/registrations?format=pdf", {
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let data = null;
+
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch {
+          data = null;
+        }
+
+        throw new Error(data?.error || text || `HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      triggerBlobDownload(blob, "registraties.pdf");
+      setMessage("PDF-export succesvol gedownload.");
+    } catch (e) {
+      console.error("PDF export error:", e);
+      setError(e?.message || "PDF-export mislukt.");
+    } finally {
+      setBusyPdf(false);
     }
   }
 
@@ -117,7 +164,7 @@ export default function ExportPage() {
             Export
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-            Exporteer alle registraties naar CSV.
+            Exporteer alle registraties naar CSV of PDF.
           </Typography>
         </Box>
 
@@ -132,18 +179,22 @@ export default function ExportPage() {
               </Typography>
 
               <Typography variant="body1" color="text.secondary">
-                Download een CSV-bestand met datum, werknemer, paircode, type,
+                Download een bestand met datum, werknemer, paircode, type,
                 QR-richting en QR-secret.
               </Typography>
 
-              <Box>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                 <Button
                   variant="contained"
                   startIcon={
-                    busy ? <CircularProgress size={18} color="inherit" /> : <DownloadOutlinedIcon />
+                    busyCsv ? (
+                      <CircularProgress size={18} color="inherit" />
+                    ) : (
+                      <DownloadOutlinedIcon />
+                    )
                   }
-                  onClick={handleExport}
-                  disabled={busy}
+                  onClick={handleExportCsv}
+                  disabled={busyCsv || busyPdf}
                   sx={{
                     minWidth: 220,
                     py: 1.4,
@@ -151,9 +202,30 @@ export default function ExportPage() {
                     borderRadius: 2.5,
                   }}
                 >
-                  {busy ? "Export bezig..." : "Download CSV"}
+                  {busyCsv ? "Export bezig..." : "Download CSV"}
                 </Button>
-              </Box>
+
+                <Button
+                  variant="contained"
+                  startIcon={
+                    busyPdf ? (
+                      <CircularProgress size={18} color="inherit" />
+                    ) : (
+                      <PictureAsPdfOutlinedIcon />
+                    )
+                  }
+                  onClick={handleExportPdf}
+                  disabled={busyCsv || busyPdf}
+                  sx={{
+                    minWidth: 220,
+                    py: 1.4,
+                    fontWeight: 700,
+                    borderRadius: 2.5,
+                  }}
+                >
+                  {busyPdf ? "PDF bezig..." : "Download PDF"}
+                </Button>
+              </Stack>
             </Stack>
           </CardContent>
         </Card>
