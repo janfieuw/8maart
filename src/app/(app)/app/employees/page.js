@@ -330,7 +330,8 @@ export default function EmployeesPage() {
                     color: "#0b4f71",
                   }}
                 >
-                  De koppel code heeft de werknemer straks nodig om zijn
+                  Voor elke werknmer wordt automatisch een koppel code gegenereerd.
+                  Deze koppel code heeft de werknemer straks nodig om zijn
                   smartphone éénmalig te koppelen. Het koppelen kan op de pagina
                   "Scan Tag".
                 </Typography>
